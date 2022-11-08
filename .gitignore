@@ -1,0 +1,5 @@
+.build
+projectfiles
+*.py*
+
+# Do NOT ignore files below
