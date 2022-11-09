@@ -1,0 +1,49 @@
+{
+    "MCU_STM32L4A6xG": {
+        "inherits": [
+            "MCU_STM32L4"
+        ],
+        "public": false,
+        "extra_labels_add": [
+            "STM32L4A6xG"
+        ],
+        "components_add": [
+            "FLASHIAP"
+        ],
+        "overrides": {
+            "lpuart_clock_source": "USE_LPUART_CLK_LSE"
+        },
+        "macros_add": [
+            "STM32L4A6xx",
+            "MBEDTLS_CONFIG_HW_SUPPORT"
+        ]
+    },
+    "ZEST_CORE_STM32L4A6RG": {
+        "bootloader_supported": true,
+        "supported_toolchains": ["ARM", "GCC_ARM"],
+        "inherits": [
+            "MCU_STM32L4A6xG"
+        ],
+        "extra_labels_add": [
+            "STM32L4A6RG"
+        ],
+        "config": {
+            "usb_speed": {
+                "help": "USE_USB_OTG_FS or USE_USB_OTG_HS or USE_USB_HS_IN_FS",
+                "value": "USE_USB_OTG_FS"
+            }
+        },
+        "overrides": {
+            "clock_source": "USE_PLL_MSI"
+        },
+        "macros_add": [
+            "STM32L4A6xx",
+            "MBEDTLS_CONFIG_HW_SUPPORT"
+        ],
+        "device_has_add": [
+            "QSPI",
+            "USBDEVICE"
+        ],
+        "device_name": "STM32L4A6RGTx"
+    }
+}
