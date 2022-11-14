@@ -20,15 +20,28 @@ public:
         DECODE_ERROR = -3
     };
 
+    enum class Motor_state : uint8_t {
+        RUN = 0,
+        STOP = 1,
+        BREAK = 2
+    };
+
     Brushless_board(SPI *spi, PinName chip_select);
+
+    /**
+     * @brief Start the communication thread that send messages to the board periodically
+     * 10 Hz by default
+     *
+     */
+    void start_communication();
+
+    void stop_communication();
+
+    void set_communication_period(uint64_t period_ms);
 
     void set_speed(float speed);
 
-    void run();
-
-    void stop();
-
-    void motor_break();
+    void set_state(Commands state);
 
     uint32_t get_tx_error_count();
 
@@ -37,6 +50,12 @@ public:
     Brushless_error send_message();
 
 private:
+    // RTOS
+    Thread _communication_thread;
+    EventQueue _event_queue;
+    int _communication_id;
+    uint64_t _period_ms;
+
     // SPI
     SPI *_spi;
     DigitalOut _chip_select;

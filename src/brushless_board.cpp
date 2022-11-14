@@ -6,6 +6,10 @@
 #include "brushless_board.h"
 
 Brushless_board::Brushless_board(SPI *spi, PinName chip_select):
+        _communication_thread(),
+        _event_queue(),
+        _communication_id(0),
+        _period_ms(100),
         _spi(spi),
         _chip_select(chip_select),
         _tx_error_count(0),
@@ -39,7 +43,8 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     /* Compute CRC */
     MbedCRC<POLY_32BIT_ANSI, 32> ct;
 
-    ct.compute((void *)_brushless_tx_buffer + 4, message_length, (uint32_t *) _brushless_tx_buffer);
+    ct.compute(
+            (uint8_t *)_brushless_tx_buffer + 4, message_length, (uint32_t *)_brushless_tx_buffer);
     // printf("The CRC of protobuf packet is : 0x%lx\n", _brushless_tx_buffer);
 
     /* Send the SPI message */
@@ -69,11 +74,10 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Check response CRC */
     uint32_t response_crc = 0;
-    ct.compute((void *)_brushless_rx_buffer + 4, BrushlessToMainBoard_size, &response_crc);
-    if (response_crc == *((uint32_t *) _brushless_rx_buffer)) {
+    ct.compute((uint8_t *)_brushless_rx_buffer + 4, BrushlessToMainBoard_size, &response_crc);
+    if (response_crc == *((uint32_t *)_brushless_rx_buffer)) {
         printf("CRC OK\n");
-    }
-    else {
+    } else {
         printf("CRC_ERROR\n");
         _rx_error_count++;
         return Brushless_error::DECODE_ERROR;
@@ -83,4 +87,15 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     _tx_error_count = response.error_count;
 
     return Brushless_error::NO_ERROR;
+}
+
+void Brushless_board::start_communication()
+{
+    _communication_id = _event_queue.call_every(_period_ms, this, &Brushless_board::send_message);
+    _communication_thread.start(callback(&_event_queue, &EventQueue::dispatch_forever));
+}
+
+void Brushless_board::stop_communication()
+{
+    _event_queue.cancel(_communication_id);
 }
