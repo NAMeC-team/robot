@@ -99,3 +99,28 @@ void Brushless_board::stop_communication()
 {
     _event_queue.cancel(_communication_id);
 }
+
+void Brushless_board::set_communication_period(uint64_t period_ms)
+{
+    _period_ms = period_ms;
+}
+
+void Brushless_board::set_state(Commands state)
+{
+    _current_command = state;
+}
+
+void Brushless_board::set_speed(float speed)
+{
+    _current_speed = speed;
+}
+
+uint32_t Brushless_board::get_rx_error_count()
+{
+    return _rx_error_count;
+}
+
+uint32_t Brushless_board::get_tx_error_count()
+{
+    return _tx_error_count;
+}
