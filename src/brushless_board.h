@@ -66,8 +66,8 @@ private:
     Commands _current_command;
     float _current_speed;
 
-    uint8_t _brushless_tx_buffer[MainBoardToBrushless_size + 4]; // CRC size is 4 bytes
-    uint8_t _brushless_rx_buffer[BrushlessToMainBoard_size + 4]; // CRC size is 4 bytes
+    uint8_t _brushless_tx_buffer[MainBoardToBrushless_size + 4 + 1]; // CRC size is 4 bytes
+    uint8_t _brushless_rx_buffer[BrushlessToMainBoard_size + 4 + 1]; // CRC size is 4 bytes + length
 };
 
 #endif // BRUSHLESS_BOARD_H_

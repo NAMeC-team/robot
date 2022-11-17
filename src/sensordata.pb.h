@@ -11,20 +11,21 @@
 
 /* Enum definitions */
 typedef enum _Commands { 
-    Commands_RUN = 0, 
-    Commands_STOP = 1, 
+    Commands_STOP = 0, 
+    Commands_RUN = 1, 
     Commands_BREAK = 2 
 } Commands;
 
 /* Struct definitions */
 typedef struct _BrushlessToMainBoard { 
     uint32_t error_count; /* Number of SPI transmission errors */
+    float measured_speed; /* m.s-1 */
 } BrushlessToMainBoard;
 
 typedef struct _IAToMainBoard { 
     float normal_speed; /* m.s-1 */
     float tangential_speed; /* m.s-1 */
-    float angular_speed; /* m.s-1 */
+    float angular_speed; /* rad.s-1 */
 } IAToMainBoard;
 
 typedef struct _MainBoardToBrushless { 
@@ -35,12 +36,12 @@ typedef struct _MainBoardToBrushless {
 typedef struct _MainboardToIA { 
     float measured_normal_speed; /* m.s-1 */
     float measured_tangential_speed; /* m.s-1 */
-    float measured_angular_speed; /* m.s-1 */
+    float measured_angular_speed; /* rad.s-1 */
 } MainboardToIA;
 
 
 /* Helper constants for enums */
-#define _Commands_MIN Commands_RUN
+#define _Commands_MIN Commands_STOP
 #define _Commands_MAX Commands_BREAK
 #define _Commands_ARRAYSIZE ((Commands)(Commands_BREAK+1))
 
@@ -51,16 +52,17 @@ extern "C" {
 
 /* Initializer values for message structs */
 #define MainBoardToBrushless_init_default        {_Commands_MIN, 0}
-#define BrushlessToMainBoard_init_default        {0}
+#define BrushlessToMainBoard_init_default        {0, 0}
 #define IAToMainBoard_init_default               {0, 0, 0}
 #define MainboardToIA_init_default               {0, 0, 0}
 #define MainBoardToBrushless_init_zero           {_Commands_MIN, 0}
-#define BrushlessToMainBoard_init_zero           {0}
+#define BrushlessToMainBoard_init_zero           {0, 0}
 #define IAToMainBoard_init_zero                  {0, 0, 0}
 #define MainboardToIA_init_zero                  {0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define BrushlessToMainBoard_error_count_tag     1
+#define BrushlessToMainBoard_measured_speed_tag  2
 #define IAToMainBoard_normal_speed_tag           1
 #define IAToMainBoard_tangential_speed_tag       2
 #define IAToMainBoard_angular_speed_tag          3
@@ -78,7 +80,8 @@ X(a, STATIC,   SINGULAR, FLOAT,    speed,             2)
 #define MainBoardToBrushless_DEFAULT NULL
 
 #define BrushlessToMainBoard_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, UINT32,   error_count,       1)
+X(a, STATIC,   SINGULAR, UINT32,   error_count,       1) \
+X(a, STATIC,   SINGULAR, FLOAT,    measured_speed,    2)
 #define BrushlessToMainBoard_CALLBACK NULL
 #define BrushlessToMainBoard_DEFAULT NULL
 
@@ -108,7 +111,7 @@ extern const pb_msgdesc_t MainboardToIA_msg;
 #define MainboardToIA_fields &MainboardToIA_msg
 
 /* Maximum encoded size of messages (where known) */
-#define BrushlessToMainBoard_size                6
+#define BrushlessToMainBoard_size                11
 #define IAToMainBoard_size                       15
 #define MainBoardToBrushless_size                7
 #define MainboardToIA_size                       15

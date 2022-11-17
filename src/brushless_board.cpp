@@ -5,6 +5,8 @@
 
 #include "brushless_board.h"
 
+static Mutex spi_mutex;
+
 Brushless_board::Brushless_board(SPI *spi, PinName chip_select):
         _communication_thread(),
         _event_queue(),
@@ -25,7 +27,7 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Create a stream that will write to our buffer. */
     pb_ostream_t tx_stream
-            = pb_ostream_from_buffer(_brushless_tx_buffer + 4, sizeof(MainBoardToBrushless_size));
+            = pb_ostream_from_buffer(_brushless_tx_buffer + 5, MainBoardToBrushless_size);
 
     message.command = _current_command;
     message.speed = _current_speed;
@@ -33,6 +35,12 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     /* Now we are ready to encode the message! */
     bool status = pb_encode(&tx_stream, MainBoardToBrushless_fields, &message);
     size_t message_length = tx_stream.bytes_written;
+
+    // printf("Bytes_written: %d/%d\n", tx_stream.bytes_written, MainBoardToBrushless_size);
+    // for (int i = 0; i < tx_stream.bytes_written; i++) {
+    //     printf("%x ", _brushless_tx_buffer[4 + i]);
+    // }
+    // printf("\n");
 
     /* Then just check for any errors.. */
     if (!status) {
@@ -43,17 +51,27 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     /* Compute CRC */
     MbedCRC<POLY_32BIT_ANSI, 32> ct;
 
-    ct.compute(
-            (uint8_t *)_brushless_tx_buffer + 4, message_length, (uint32_t *)_brushless_tx_buffer);
+    ct.compute((uint8_t *)_brushless_tx_buffer + 5,
+            message_length,
+            (uint32_t *)(_brushless_tx_buffer + 1));
     // printf("The CRC of protobuf packet is : 0x%lx\n", _brushless_tx_buffer);
 
+    /* add message length */
+    _brushless_tx_buffer[0] = message_length;
+
     /* Send the SPI message */
+    for (int i = 0; i < message_length + 5; i++) {
+        printf("%x ", _brushless_tx_buffer[i]);
+    }
+    printf("\n");
+    spi_mutex.lock();
     _chip_select = 0;
     _spi->write((const char *)_brushless_tx_buffer,
-            message_length + 4,
+            message_length + 5,
             (char *)_brushless_rx_buffer,
-            BrushlessToMainBoard_size + 4);
+            BrushlessToMainBoard_size + 4 + 1);
     _chip_select = 1;
+    spi_mutex.unlock();
 
     /* Try to decode protobuf response */
     BrushlessToMainBoard response = BrushlessToMainBoard_init_zero;
@@ -64,7 +82,6 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Now we are ready to decode the message. */
     status = pb_decode(&rx_stream, BrushlessToMainBoard_fields, &response);
-    printf("[DEBUG]: rx_stream.bytes_left : %d\n", rx_stream.bytes_left);
 
     /* Check for errors... */
     if (!status) {
