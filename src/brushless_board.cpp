@@ -13,7 +13,7 @@ Brushless_board::Brushless_board(SPI *spi, PinName chip_select):
         _communication_id(0),
         _period_ms(100),
         _spi(spi),
-        _chip_select(chip_select),
+        _chip_select(chip_select, 1),
         _tx_error_count(0),
         _rx_error_count(0),
         _current_command(Commands_STOP),
@@ -60,10 +60,6 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     _brushless_tx_buffer[0] = message_length;
 
     /* Send the SPI message */
-    for (int i = 0; i < message_length + 5; i++) {
-        printf("%x ", _brushless_tx_buffer[i]);
-    }
-    printf("\n");
     spi_mutex.lock();
     _chip_select = 0;
     _spi->write((const char *)_brushless_tx_buffer,
@@ -75,10 +71,11 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Try to decode protobuf response */
     BrushlessToMainBoard response = BrushlessToMainBoard_init_zero;
+    uint8_t response_length = _brushless_rx_buffer[0];
 
     /* Create a stream that reads from the buffer. */
     pb_istream_t rx_stream
-            = pb_istream_from_buffer(_brushless_rx_buffer + 4, BrushlessToMainBoard_size);
+            = pb_istream_from_buffer(_brushless_rx_buffer + 5, response_length);
 
     /* Now we are ready to decode the message. */
     status = pb_decode(&rx_stream, BrushlessToMainBoard_fields, &response);
@@ -86,16 +83,17 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     /* Check for errors... */
     if (!status) {
         printf("Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+        _rx_error_count++;
         return Brushless_error::DECODE_ERROR;
     }
 
     /* Check response CRC */
     uint32_t response_crc = 0;
-    ct.compute((uint8_t *)_brushless_rx_buffer + 4, BrushlessToMainBoard_size, &response_crc);
-    if (response_crc == *((uint32_t *)_brushless_rx_buffer)) {
-        printf("CRC OK\n");
+    ct.compute((uint8_t *)_brushless_rx_buffer + 5, response_length, &response_crc);
+    if (response_crc == *((uint32_t *) (_brushless_rx_buffer + 1))) {
+        // printf("CRC OK\n");
     } else {
-        printf("CRC_ERROR\n");
+        // printf("CRC_ERROR 0x%x 0x%x\n", response_crc, *((uint32_t *) (_brushless_rx_buffer + 1)));
         _rx_error_count++;
         return Brushless_error::DECODE_ERROR;
     }

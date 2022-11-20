@@ -27,6 +27,7 @@ static Brushless_board motor1(&driver_spi, SPI_CS_DRV1);
 static Brushless_board motor2(&driver_spi, SPI_CS_DRV2);
 static Brushless_board motor3(&driver_spi, SPI_CS_DRV3);
 static Brushless_board motor4(&driver_spi, SPI_CS_DRV4);
+DigitalOut cs_drv5(SPI_CS_DRV5, 1);
 
 /* RTOS */
 EventQueue event_queue;
@@ -56,9 +57,12 @@ void compute_motor_speed(
 
 void apply_motor_speed()
 {
-    printf("Normal speed: %f\n", ai_message.normal_speed);
-    printf("tangential speed: %f\n", ai_message.tangential_speed);
-    printf("angular speed: %f\n", ai_message.angular_speed);
+    if (ai_message.normal_speed != 0 || ai_message.tangential_speed != 0
+            || ai_message.angular_speed != 0) {
+        printf("Normal speed: %f\n", ai_message.normal_speed);
+        printf("tangential speed: %f\n", ai_message.tangential_speed);
+        printf("angular speed: %f\n", ai_message.angular_speed);
+    }
 
     Motor_speed motor_speed;
     compute_motor_speed(&motor_speed,
@@ -125,8 +129,22 @@ void on_rx_interrupt()
     }
 }
 
+void print_communication_status()
+{
+    printf("Motor1 TX errors: %d\n", motor1.get_tx_error_count());
+    printf("Motor1 RX errors: %d\n", motor1.get_rx_error_count());
+    printf("Motor2 TX errors: %d\n", motor2.get_tx_error_count());
+    printf("Motor2 RX errors: %d\n", motor2.get_rx_error_count());
+    printf("Motor3 TX errors: %d\n", motor3.get_tx_error_count());
+    printf("Motor3 RX errors: %d\n", motor3.get_rx_error_count());
+    printf("Motor4 TX errors: %d\n", motor4.get_tx_error_count());
+    printf("Motor4 RX errors: %d\n", motor4.get_rx_error_count());
+}
+
 int main()
 {
+    driver_spi.frequency(1000000);
+
     // Remote
     serial_port.baud(115200);
     serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
@@ -136,10 +154,12 @@ int main()
     motor3.set_communication_period(1000);
     motor4.set_communication_period(1000);
 
-    motor1.start_communication();
-    // motor2.start_communication();
+    // motor1.start_communication();
+    motor2.start_communication();
     // motor3.start_communication();
     // motor4.start_communication();
+
+    event_queue.call_every(1s, print_communication_status);
 
     event_queue.dispatch_forever();
 
