@@ -4,10 +4,10 @@
  */
 #include "brushless_board.h"
 #include "mbed.h"
-#include "swo.h"
-#include "radio_utils.h"
 #include "nrf24l01.h"
+#include "radio_utils.h"
 #include "rf_app.h"
+#include "swo.h"
 
 namespace {
 #define HALF_PERIOD 500ms
@@ -28,13 +28,16 @@ FileHandle *mbed::mbed_override_console(int fd)
 static DigitalOut led1(LED1);
 static UnbufferedSerial serial_port(USBTX, USBRX);
 static SPI driver_spi(SPI_MOSI_DRV, SPI_MISO_DRV, SPI_SCK_DRV);
-static Brushless_board motor1(&driver_spi, SPI_CS_DRV4);
-static Brushless_board motor2(&driver_spi, SPI_CS_DRV1);
-static Brushless_board motor3(&driver_spi, SPI_CS_DRV2);
-static Brushless_board motor4(&driver_spi, SPI_CS_DRV3);
+static Brushless_board motor1(&driver_spi, SPI_CS_DRV1);
+static Brushless_board motor2(&driver_spi, SPI_CS_DRV2);
+static Brushless_board motor3(&driver_spi, SPI_CS_DRV3);
+static Brushless_board motor4(&driver_spi, SPI_CS_DRV4);
 DigitalOut cs_drv5(SPI_CS_DRV5, 1);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
+
+// Kicker
+static DigitalOut charge(KCK_EN, 1);
 
 /* RTOS */
 EventQueue event_queue;
@@ -48,7 +51,7 @@ typedef struct _Motor_speed {
 } Motor_speed;
 
 // Global variables
-static uint8_t com_addr1_to_listen[5] = {0x22, 0x87, 0xe8, 0xf9, 0x01};
+static uint8_t com_addr1_to_listen[5] = { 0x22, 0x87, 0xe8, 0xf9, 0x01 };
 IAToMainBoard ai_message = IAToMainBoard_init_zero;
 
 void compute_motor_speed(
@@ -88,52 +91,28 @@ void apply_motor_speed()
     motor4.set_speed(motor_speed.speed4);
 }
 
-void on_rx_interrupt()
+void on_rx_interrupt(uint8_t *data, size_t data_size)
 {
-    static bool start_of_frame = false;
     static uint8_t length = 0;
-    static uint8_t read_count = 0;
-    static uint8_t read_buffer[IAToMainBoard_size];
-    uint8_t c;
+    ai_message = IAToMainBoard_init_zero;
 
-    if (!start_of_frame) {
-        serial_port.read(&c, 1);
-        if (c > 0 && c <= (IAToMainBoard_size)) {
-            start_of_frame = true;
-            length = c;
-            read_count = 0;
-            // event_queue.call(printf, "Receiving : %d\n", length);
-        } else if (c == 0) {
-            start_of_frame = false;
-            length = 0;
-            read_count = 0;
-            ai_message = IAToMainBoard_init_zero;
-            event_queue.call(apply_motor_speed);
-        }
+    length = data[0];
+
+    if (length == 0) {
+        event_queue.call(apply_motor_speed);
     } else {
-        serial_port.read(&read_buffer[read_count], 1);
-        read_count++;
-        if (read_count == length) {
-            read_count = 0;
-            start_of_frame = false;
+        /* Try to decode protobuf response */
+        /* Create a stream that reads from the buffer. */
+        pb_istream_t rx_stream = pb_istream_from_buffer(&data[1], length);
 
-            // event_queue.call(printf, "Parsing !\n");
+        /* Now we are ready to decode the message. */
+        bool status = pb_decode(&rx_stream, IAToMainBoard_fields, &ai_message);
 
-            /* Try to decode protobuf response */
-            ai_message = IAToMainBoard_init_zero;
-
-            /* Create a stream that reads from the buffer. */
-            pb_istream_t rx_stream = pb_istream_from_buffer(read_buffer, length);
-
-            /* Now we are ready to decode the message. */
-            bool status = pb_decode(&rx_stream, IAToMainBoard_fields, &ai_message);
-
-            /* Check for errors... */
-            if (!status) {
-                event_queue.call(printf, "Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
-            } else {
-                event_queue.call(apply_motor_speed);
-            }
+        /* Check for errors... */
+        if (!status) {
+            event_queue.call(printf, "Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+        } else {
+            event_queue.call(apply_motor_speed);
         }
     }
 }
@@ -154,9 +133,9 @@ int main()
 {
     driver_spi.frequency(1000000);
 
-    // Remote
-    serial_port.baud(115200);
-    serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
+    // // Remote
+    // serial_port.baud(115200);
+    // serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
 
     motor1.set_communication_period(10);
     motor2.set_communication_period(10);
@@ -171,7 +150,10 @@ int main()
     // event_queue.call_every(1s, print_communication_status);
 
     // Radio
-    RF_app rf_app1 = RF_app(&radio1, RF_app::RFAppMode::RX, RF_FREQ_1, com_addr1_to_listen, 6);
+    RF_app rf_app1(&radio1, RF_app::RFAppMode::RX, RF_FREQ_1, com_addr1_to_listen, IAToMainBoard_size);
+    rf_app1.print_setup();
+    rf_app1.attach_rx_callback(&on_rx_interrupt);
+    rf_app1.run();
 
     event_queue.dispatch_forever();
 

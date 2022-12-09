@@ -11,14 +11,7 @@
 #include "mbed.h"
 #include "nordic-nrf24l01/nrf24l01/nrf24l01.h"
 #include "radio_utils.h"
-typedef enum {
-	WAIT_EVENT 			= 0,
-	EVENT_DETECTED,
-	PROCESS_RX,
-	PROCESS_TX,
-	SWITCH_MODE,
-	TRANSFER
-}rf_com_state_t;
+#include "sensordata.pb.h"
 
 class RF_app
 {
@@ -52,11 +45,11 @@ public:
 
 	void exit(void);
 
-	void print_setup(int arg_cnt, char **args);
+	void print_setup();
 
-	void rf_set_config(int arg_cnt, char **args);
+	void attach_rx_callback(Callback<void(uint8_t *packet, size_t length)> rx_callback);
 
-	void set_rf_param(int arg_cnt, char **args);
+	void get_rx_packet();
 
 protected:
 	void _process(void);
@@ -64,12 +57,11 @@ protected:
 	void _rf_callback(void);
 
 private:
-	//static SingletonPtr<PlatformMutex> _mutex;
 	NRF24L01 *_device;
-	com_packet_t _packet;
-	Thread *_thread;
-	rf_com_state_t _rf_state;
-
+	Thread _thread;
+	EventQueue _event_queue;
+	Callback<void(uint8_t *packet, size_t length)> _rx_callback;
+	uint8_t _packet[IAToMainBoard_size];
 };
 
 void print_frame(com_packet_t *packet_to_print);
