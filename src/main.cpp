@@ -5,10 +5,15 @@
 #include "brushless_board.h"
 #include "mbed.h"
 #include "swo.h"
+#include "radio_utils.h"
+#include "nrf24l01.h"
+#include "rf_app.h"
 
 namespace {
 #define HALF_PERIOD 500ms
 #define WHEEL_RADIUS 0.03
+#define RF_FREQ_1 2402
+#define RF_FREQ_2 2460
 }
 
 using namespace sixtron;
@@ -28,6 +33,8 @@ static Brushless_board motor2(&driver_spi, SPI_CS_DRV2);
 static Brushless_board motor3(&driver_spi, SPI_CS_DRV3);
 static Brushless_board motor4(&driver_spi, SPI_CS_DRV4);
 DigitalOut cs_drv5(SPI_CS_DRV5, 1);
+static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
+static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
 
 /* RTOS */
 EventQueue event_queue;
@@ -40,6 +47,8 @@ typedef struct _Motor_speed {
     float speed4;
 } Motor_speed;
 
+// Global variables
+static uint8_t com_addr1_to_listen[5] = {0x22, 0x87, 0xe8, 0xf9, 0x01};
 IAToMainBoard ai_message = IAToMainBoard_init_zero;
 
 void compute_motor_speed(
@@ -159,7 +168,10 @@ int main()
     // motor3.start_communication();
     // motor4.start_communication();
 
-    event_queue.call_every(1s, print_communication_status);
+    // event_queue.call_every(1s, print_communication_status);
+
+    // Radio
+    RF_app rf_app1 = RF_app(&radio1, RF_app::RFAppMode::RX, RF_FREQ_1, com_addr1_to_listen, 6);
 
     event_queue.dispatch_forever();
 
