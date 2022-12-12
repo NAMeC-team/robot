@@ -7,6 +7,7 @@
 #include "nrf24l01.h"
 #include "radio_utils.h"
 #include "rf_app.h"
+#include "ssl-kicker.h"
 #include "swo.h"
 
 namespace {
@@ -37,7 +38,7 @@ static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
 
 // Kicker
-static DigitalOut charge(KCK_EN, 1);
+static KICKER kicker(KCK_EN, KCK1, KCK2);
 
 /* RTOS */
 EventQueue event_queue;
@@ -113,20 +114,31 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             event_queue.call(printf, "Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
             event_queue.call(apply_motor_speed);
+            if (ai_message.kicker_cmd != Kicker::Kicker_NO_KICK) {
+                if (ai_message.kicker_cmd == Kicker::Kicker_KICK1) {
+                    kicker.kick1(ai_message.kick_power);
+                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+                }
+            }
+            if (ai_message.charge) {
+                event_queue.call(printf, "CHARGE\n");
+
+                kicker.enable_charge();
+            }
         }
     }
 }
 
 void print_communication_status()
 {
-    printf("Motor1 TX errors: %d\n", motor1.get_tx_error_count());
-    printf("Motor1 RX errors: %d\n", motor1.get_rx_error_count());
-    printf("Motor2 TX errors: %d\n", motor2.get_tx_error_count());
-    printf("Motor2 RX errors: %d\n", motor2.get_rx_error_count());
-    printf("Motor3 TX errors: %d\n", motor3.get_tx_error_count());
-    printf("Motor3 RX errors: %d\n", motor3.get_rx_error_count());
-    printf("Motor4 TX errors: %d\n", motor4.get_tx_error_count());
-    printf("Motor4 RX errors: %d\n", motor4.get_rx_error_count());
+    printf("Motor1 TX errors: %ld\n", motor1.get_tx_error_count());
+    printf("Motor1 RX errors: %ld\n", motor1.get_rx_error_count());
+    printf("Motor2 TX errors: %ld\n", motor2.get_tx_error_count());
+    printf("Motor2 RX errors: %ld\n", motor2.get_rx_error_count());
+    printf("Motor3 TX errors: %ld\n", motor3.get_tx_error_count());
+    printf("Motor3 RX errors: %ld\n", motor3.get_rx_error_count());
+    printf("Motor4 TX errors: %ld\n", motor4.get_tx_error_count());
+    printf("Motor4 RX errors: %ld\n", motor4.get_rx_error_count());
 }
 
 int main()
@@ -150,7 +162,8 @@ int main()
     // event_queue.call_every(1s, print_communication_status);
 
     // Radio
-    RF_app rf_app1(&radio1, RF_app::RFAppMode::RX, RF_FREQ_1, com_addr1_to_listen, IAToMainBoard_size);
+    RF_app rf_app1(
+            &radio1, RF_app::RFAppMode::RX, RF_FREQ_1, com_addr1_to_listen, IAToMainBoard_size + 1);
     rf_app1.print_setup();
     rf_app1.attach_rx_callback(&on_rx_interrupt);
     rf_app1.run();
