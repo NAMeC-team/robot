@@ -109,7 +109,7 @@ void RF_app::setup(RFAppMode rf_mode, uint16_t frequency, uint8_t *Tx_addr, uint
 
 void RF_app::run()
 {
-        _thread.start(callback(&_event_queue, &EventQueue::dispatch_forever));
+    _thread.start(callback(&_event_queue, &EventQueue::dispatch_forever));
 }
 
 void RF_app::exit()
@@ -118,16 +118,16 @@ void RF_app::exit()
 }
 
 void RF_app::get_rx_packet()
-{	
+{
     _device->clear_interrupt_flags();
-    if (((_device->fifo_status_register()) & 0x02) == 0x02) {
-        // rx fifo full
-        _device->read_packet(_packet, IAToMainBoard_size);
+    // if (((_device->fifo_status_register()) & 0x02) == 0x02) {
+    // rx fifo full
+    _device->read_packet(_packet, IAToMainBoard_size + 1);
 
-        if (_rx_callback) {
-			_rx_callback.call(_packet, IAToMainBoard_size);
-		}
+    if (_rx_callback) {
+        _rx_callback.call(_packet, IAToMainBoard_size + 1);
     }
+    // }
 }
 
 void RF_app::print_setup()
@@ -177,7 +177,7 @@ void RF_app::_rf_callback(void)
 
 /*__________________________
 
- 	 Extern C functions
+    Extern C functions
 ___________________________ */
 void print_frame(com_packet_t *packet_to_print)
 {
