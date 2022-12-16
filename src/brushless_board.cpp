@@ -44,7 +44,7 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Then just check for any errors.. */
     if (!status) {
-        printf("Encoding failed: %s\n", PB_GET_ERROR(&tx_stream));
+        printf("[BRUSHLESS] Encoding failed: %s\n", PB_GET_ERROR(&tx_stream));
         return Brushless_error::ENCODE_ERROR;
     }
 
@@ -82,7 +82,7 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Check for errors... */
     if (!status) {
-        printf("Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+        printf("[BRUSHLESS] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         _rx_error_count++;
         return Brushless_error::DECODE_ERROR;
     }

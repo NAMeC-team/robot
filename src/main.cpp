@@ -111,19 +111,22 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
 
         /* Check for errors... */
         if (!status) {
-            event_queue.call(printf, "Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+            event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
             event_queue.call(apply_motor_speed);
-            if (ai_message.kicker_cmd != Kicker::Kicker_NO_KICK) {
-                if (ai_message.kicker_cmd == Kicker::Kicker_KICK1) {
-                    kicker.kick1(ai_message.kick_power);
-                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
-                }
+            if (ai_message.kicker_cmd == Kicker::Kicker_KICK1) {
+                kicker.kick1(ai_message.kick_power);
+                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
             }
-            if (ai_message.charge) {
-                event_queue.call(printf, "CHARGE\n");
+            if (ai_message.kicker_cmd == Kicker::Kicker_KICK2) {
+                kicker.kick2(ai_message.kick_power);
+                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+            }
 
+            if (ai_message.charge == 1) {
                 kicker.enable_charge();
+            } else {
+                kicker.disable_charge();
             }
         }
     }
