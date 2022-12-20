@@ -12,7 +12,7 @@
 
 namespace {
 #define HALF_PERIOD 500ms
-#define WHEEL_RADIUS 0.03
+#define WHEEL_RADIUS 0.085
 #define RF_FREQ_1 2402
 #define RF_FREQ_2 2460
 }

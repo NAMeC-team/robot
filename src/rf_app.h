@@ -11,7 +11,7 @@
 #include "mbed.h"
 #include "nordic-nrf24l01/nrf24l01/nrf24l01.h"
 #include "radio_utils.h"
-#include "sensordata.pb.h"
+#include "ssl_data.pb.h"
 
 class RF_app
 {
