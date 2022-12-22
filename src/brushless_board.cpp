@@ -24,6 +24,7 @@ Brushless_board::Brushless_board(SPI *spi, PinName chip_select):
 Brushless_board::Brushless_error Brushless_board::send_message()
 {
     MainBoardToBrushless message = MainBoardToBrushless_init_zero;
+    memset(_brushless_tx_buffer, 0, sizeof(_brushless_tx_buffer));
 
     /* Create a stream that will write to our buffer. */
     pb_ostream_t tx_stream

@@ -9,6 +9,7 @@
 #include "rf_app.h"
 #include "ssl-kicker.h"
 #include "swo.h"
+#include "dribbler.h"
 
 namespace {
 #define HALF_PERIOD 500ms
@@ -33,6 +34,7 @@ static Brushless_board motor1(&driver_spi, SPI_CS_DRV1);
 static Brushless_board motor2(&driver_spi, SPI_CS_DRV2);
 static Brushless_board motor3(&driver_spi, SPI_CS_DRV3);
 static Brushless_board motor4(&driver_spi, SPI_CS_DRV4);
+static Dribbler dribbler(&driver_spi, SPI_CS_DRV5);
 DigitalOut cs_drv5(SPI_CS_DRV5, 1);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
@@ -121,6 +123,11 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             if (ai_message.kicker_cmd == Kicker::Kicker_KICK2) {
                 kicker.kick2(ai_message.kick_power);
                 event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+            }
+            if (ai_message.dribbler == true) {
+                dribbler.set_speed(400);
+            } else {
+                dribbler.set_speed(0);
             }
 
             if (ai_message.charge == 1) {
