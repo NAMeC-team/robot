@@ -38,6 +38,7 @@ static Dribbler dribbler(&driver_spi, SPI_CS_DRV5, &spi_mutex);
 DigitalOut cs_drv5(SPI_CS_DRV5, 1);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
+static Timeout timeout;
 
 // Kicker
 static KICKER kicker(KCK_EN, KCK1, KCK2);
@@ -95,6 +96,18 @@ void apply_motor_speed()
     motor4.set_speed(motor_speed.speed4);
 }
 
+void stop_motors()
+{
+    motor1.set_state(Commands_STOP);
+    motor2.set_state(Commands_STOP);
+    motor3.set_state(Commands_STOP);
+    motor4.set_state(Commands_STOP);
+    motor1.set_speed(0.0);
+    motor2.set_speed(0.0);
+    motor3.set_speed(0.0);
+    motor4.set_speed(0.0);
+}
+
 void on_rx_interrupt(uint8_t *data, size_t data_size)
 {
     static uint8_t length = 0;
@@ -142,6 +155,8 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             }
         }
     }
+    timeout.detach();
+    timeout.attach(stop_motors, 500ms);
 }
 
 void print_communication_status()
