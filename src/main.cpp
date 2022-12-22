@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "brushless_board.h"
+#include "dribbler.h"
 #include "mbed.h"
 #include "nrf24l01.h"
 #include "rf_app.h"
 #include "ssl-kicker.h"
 #include "swo.h"
-#include "dribbler.h"
 
 namespace {
 #define HALF_PERIOD 500ms
@@ -29,11 +29,12 @@ FileHandle *mbed::mbed_override_console(int fd)
 static DigitalOut led1(LED1);
 static UnbufferedSerial serial_port(USBTX, USBRX);
 static SPI driver_spi(SPI_MOSI_DRV, SPI_MISO_DRV, SPI_SCK_DRV);
-static Brushless_board motor1(&driver_spi, SPI_CS_DRV1);
-static Brushless_board motor2(&driver_spi, SPI_CS_DRV2);
-static Brushless_board motor3(&driver_spi, SPI_CS_DRV3);
-static Brushless_board motor4(&driver_spi, SPI_CS_DRV4);
-static Dribbler dribbler(&driver_spi, SPI_CS_DRV5);
+static Mutex spi_mutex;
+static Brushless_board motor1(&driver_spi, SPI_CS_DRV1, &spi_mutex);
+static Brushless_board motor2(&driver_spi, SPI_CS_DRV2, &spi_mutex);
+static Brushless_board motor3(&driver_spi, SPI_CS_DRV3, &spi_mutex);
+static Brushless_board motor4(&driver_spi, SPI_CS_DRV4, &spi_mutex);
+static Dribbler dribbler(&driver_spi, SPI_CS_DRV5, &spi_mutex);
 DigitalOut cs_drv5(SPI_CS_DRV5, 1);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
@@ -73,9 +74,9 @@ void apply_motor_speed()
 {
     if (ai_message.normal_speed != 0 || ai_message.tangential_speed != 0
             || ai_message.angular_speed != 0) {
-        printf("Normal speed: %f\n", ai_message.normal_speed);
-        printf("tangential speed: %f\n", ai_message.tangential_speed);
-        printf("angular speed: %f\n", ai_message.angular_speed);
+        // printf("Normal speed: %f\n", ai_message.normal_speed);
+        // printf("tangential speed: %f\n", ai_message.tangential_speed);
+        // printf("angular speed: %f\n", ai_message.angular_speed);
     }
 
     Motor_speed motor_speed;
@@ -83,10 +84,11 @@ void apply_motor_speed()
             ai_message.normal_speed,
             ai_message.tangential_speed,
             ai_message.angular_speed);
-    // printf("%f\n", motor_speed.speed1);
-    // printf("%f\n", motor_speed.speed2);
-    // printf("%f\n", motor_speed.speed3);
-    // printf("%f\n", motor_speed.speed4);
+
+    motor1.set_state(Commands_RUN);
+    motor2.set_state(Commands_RUN);
+    motor3.set_state(Commands_RUN);
+    motor4.set_state(Commands_RUN);
     motor1.set_speed(motor_speed.speed1);
     motor2.set_speed(motor_speed.speed2);
     motor3.set_speed(motor_speed.speed3);
@@ -124,9 +126,13 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
                 event_queue.call(printf, "Power %f\n", ai_message.kick_power);
             }
             if (ai_message.dribbler == true) {
+                dribbler.set_state(Commands_RUN);
                 dribbler.set_speed(400);
+                dribbler.send_message();
             } else {
+                dribbler.set_state(Commands_STOP);
                 dribbler.set_speed(0);
+                dribbler.send_message();
             }
 
             if (ai_message.charge == 1) {
@@ -152,7 +158,7 @@ void print_communication_status()
 
 int main()
 {
-    driver_spi.frequency(1000000);
+    driver_spi.frequency(500000);
 
     // // Remote
     // serial_port.baud(115200);

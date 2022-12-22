@@ -26,7 +26,7 @@ public:
         BREAK = 2
     };
 
-    Brushless_board(SPI *spi, PinName chip_select);
+    Brushless_board(SPI *spi, PinName chip_select, Mutex *spi_mutex);
 
     /**
      * @brief Start the communication thread that send messages to the board periodically
@@ -59,6 +59,7 @@ private:
     // SPI
     SPI *_spi;
     DigitalOut _chip_select;
+    Mutex *_spi_mutex;
 
     // Protobuf data
     uint32_t _tx_error_count;

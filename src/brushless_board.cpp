@@ -5,15 +5,14 @@
 
 #include "brushless_board.h"
 
-static Mutex spi_mutex;
-
-Brushless_board::Brushless_board(SPI *spi, PinName chip_select):
+Brushless_board::Brushless_board(SPI *spi, PinName chip_select, Mutex *spi_mutex):
         _communication_thread(),
         _event_queue(),
         _communication_id(0),
         _period_ms(100),
         _spi(spi),
         _chip_select(chip_select, 1),
+        _spi_mutex(spi_mutex),
         _tx_error_count(0),
         _rx_error_count(0),
         _current_command(Commands_STOP),
@@ -61,14 +60,14 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     _brushless_tx_buffer[0] = message_length;
 
     /* Send the SPI message */
-    spi_mutex.lock();
+    _spi_mutex->lock();
     _chip_select = 0;
     _spi->write((const char *)_brushless_tx_buffer,
             message_length + 5,
             (char *)_brushless_rx_buffer,
             BrushlessToMainBoard_size + 4 + 1);
     _chip_select = 1;
-    spi_mutex.unlock();
+    _spi_mutex->unlock();
 
     /* Try to decode protobuf response */
     BrushlessToMainBoard response = BrushlessToMainBoard_init_zero;

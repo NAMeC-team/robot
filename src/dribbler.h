@@ -25,24 +25,25 @@ public:
         BREAK = 2
     };
 
-    Dribbler(SPI *spi, PinName chip_select);
+    Dribbler(SPI *spi, PinName chip_select, Mutex *spi_mutex);
 
     void set_speed(float speed);
 
     void set_state(Commands state);
 
+    Dribbler_error send_message();
+
 private:
     // SPI
     SPI *_spi;
     DigitalOut _chip_select;
+    Mutex *_spi_mutex;
 
     // Protobuf data
     Commands _current_command;
     float _current_speed;
 
     uint8_t _dribbler_tx_buffer[MainBoardToDribbler_size + 4 + 1]; // CRC size is 4 bytes
-
-    Dribbler_error send_message();
 };
 
 #endif // DRIBBLER_H_
