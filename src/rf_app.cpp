@@ -12,19 +12,6 @@ namespace {
 #define RF_FREQ_MIN 2400
 }
 
-typedef enum {
-    RX_EVENT = 1,
-    TX_EVENT = 2,
-} rf_com_events_t;
-
-typedef struct {
-    uint8_t id_app;
-    bool print_process;
-    bool process_running;
-} rf_app_param_t;
-
-static rf_app_param_t rf_app_param;
-
 RF_app::RF_app(NRF24L01 *device,
         RFAppMode rf_mode,
         RFAppInterrupt enable_interrupt,
@@ -127,7 +114,6 @@ void RF_app::get_rx_packet()
     if (_rx_callback) {
         _rx_callback.call(_packet, IAToMainBoard_size + 1);
     }
-    // }
 }
 
 void RF_app::print_setup()
