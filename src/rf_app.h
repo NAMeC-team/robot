@@ -10,7 +10,6 @@
 
 #include "mbed.h"
 #include "nordic-nrf24l01/nrf24l01/nrf24l01.h"
-#include "radio_utils.h"
 #include "ssl_data.pb.h"
 
 class RF_app
@@ -63,8 +62,5 @@ private:
 	Callback<void(uint8_t *packet, size_t length)> _rx_callback;
 	uint8_t _packet[IAToMainBoard_size];
 };
-
-void print_frame(com_packet_t *packet_to_print);
-
 
 #endif /* SRC_RF_RF_APP_H_ */

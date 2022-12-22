@@ -5,7 +5,6 @@
 #include "brushless_board.h"
 #include "mbed.h"
 #include "nrf24l01.h"
-#include "radio_utils.h"
 #include "rf_app.h"
 #include "ssl-kicker.h"
 #include "swo.h"
