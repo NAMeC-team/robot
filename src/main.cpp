@@ -13,7 +13,7 @@
 
 namespace {
 #define HALF_PERIOD 500ms
-#define WHEEL_RADIUS 0.085
+#define ROBOT_RADIUS 0.085
 #define RF_FREQ_1 2402
 #define RF_FREQ_2 2460
 }
@@ -61,13 +61,13 @@ void compute_motor_speed(
         Motor_speed *motor_speed, float normal_speed, float tangential_speed, float angular_speed)
 {
     motor_speed->speed1 = -(sqrt(3) / 2.) * normal_speed + (1. / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
     motor_speed->speed2 = -(sqrt(2) / 2.) * normal_speed - (sqrt(2) / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
     motor_speed->speed3 = (sqrt(2) / 2.) * normal_speed - (sqrt(2) / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
     motor_speed->speed4 = (sqrt(3) / 2.) * normal_speed + (1. / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
 }
 
 void apply_motor_speed()
