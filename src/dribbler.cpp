@@ -5,11 +5,11 @@
 
 #include "dribbler.h"
 
-static Mutex spi_mutex;
 
-Dribbler::Dribbler(SPI *spi, PinName chip_select):
+Dribbler::Dribbler(SPI *spi, PinName chip_select, Mutex *spi_mutex):
         _spi(spi),
         _chip_select(chip_select, 1),
+        _spi_mutex(spi_mutex),
         _current_command(Commands_STOP),
         _current_speed(0)
 {
@@ -41,12 +41,12 @@ Dribbler::Dribbler_error Dribbler::send_message()
     _dribbler_tx_buffer[0] = message_length;
 
     /* Send the SPI message */
-    spi_mutex.lock();
+    _spi_mutex->lock();
     _chip_select = 0;
     _spi->write((const char *)_dribbler_tx_buffer,
             MainBoardToDribbler_size + 1, nullptr, 0);
     _chip_select = 1;
-    spi_mutex.unlock();
+    _spi_mutex->unlock();
 
     return Dribbler_error::NO_ERROR;
 }
@@ -54,11 +54,9 @@ Dribbler::Dribbler_error Dribbler::send_message()
 void Dribbler::set_state(Commands state)
 {
     _current_command = state;
-    send_message();
 }
 
 void Dribbler::set_speed(float speed)
 {
     _current_speed = speed;
-    send_message();
 }
