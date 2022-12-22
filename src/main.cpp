@@ -4,11 +4,17 @@
  */
 #include "brushless_board.h"
 #include "mbed.h"
+#include "nrf24l01.h"
+#include "rf_app.h"
+#include "ssl-kicker.h"
 #include "swo.h"
+#include "dribbler.h"
 
 namespace {
 #define HALF_PERIOD 500ms
-#define WHEEL_RADIUS 0.03
+#define ROBOT_RADIUS 0.085
+#define RF_FREQ_1 2402
+#define RF_FREQ_2 2460
 }
 
 using namespace sixtron;
@@ -23,11 +29,17 @@ FileHandle *mbed::mbed_override_console(int fd)
 static DigitalOut led1(LED1);
 static UnbufferedSerial serial_port(USBTX, USBRX);
 static SPI driver_spi(SPI_MOSI_DRV, SPI_MISO_DRV, SPI_SCK_DRV);
-static Brushless_board motor1(&driver_spi, SPI_CS_DRV4);
-static Brushless_board motor2(&driver_spi, SPI_CS_DRV1);
-static Brushless_board motor3(&driver_spi, SPI_CS_DRV2);
-static Brushless_board motor4(&driver_spi, SPI_CS_DRV3);
-static DigitalOut cs_drv5(SPI_CS_DRV5, 1);
+static Brushless_board motor1(&driver_spi, SPI_CS_DRV1);
+static Brushless_board motor2(&driver_spi, SPI_CS_DRV2);
+static Brushless_board motor3(&driver_spi, SPI_CS_DRV3);
+static Brushless_board motor4(&driver_spi, SPI_CS_DRV4);
+static Dribbler dribbler(&driver_spi, SPI_CS_DRV5);
+DigitalOut cs_drv5(SPI_CS_DRV5, 1);
+static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
+static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
+
+// Kicker
+static KICKER kicker(KCK_EN, KCK1, KCK2);
 
 /* RTOS */
 EventQueue event_queue;
@@ -40,19 +52,21 @@ typedef struct _Motor_speed {
     float speed4;
 } Motor_speed;
 
+// Global variables
+static uint8_t com_addr1_to_listen[5] = { 0x22, 0x87, 0xe8, 0xf9, 0x01 };
 IAToMainBoard ai_message = IAToMainBoard_init_zero;
 
 void compute_motor_speed(
         Motor_speed *motor_speed, float normal_speed, float tangential_speed, float angular_speed)
 {
     motor_speed->speed1 = -(sqrt(3) / 2.) * normal_speed + (1. / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
     motor_speed->speed2 = -(sqrt(2) / 2.) * normal_speed - (sqrt(2) / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
     motor_speed->speed3 = (sqrt(2) / 2.) * normal_speed - (sqrt(2) / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
     motor_speed->speed4 = (sqrt(3) / 2.) * normal_speed + (1. / 2.) * tangential_speed
-            + WHEEL_RADIUS * angular_speed;
+            + ROBOT_RADIUS * angular_speed;
 }
 
 void apply_motor_speed()
@@ -79,51 +93,46 @@ void apply_motor_speed()
     motor4.set_speed(motor_speed.speed4);
 }
 
-void on_rx_interrupt()
+void on_rx_interrupt(uint8_t *data, size_t data_size)
 {
-    static bool start_of_frame = false;
     static uint8_t length = 0;
-    static uint8_t read_count = 0;
-    static uint8_t read_buffer[IAToMainBoard_size];
-    uint8_t c;
+    ai_message = IAToMainBoard_init_zero;
 
-    if (!start_of_frame) {
-        serial_port.read(&c, 1);
-        if (c > 0 && c <= (IAToMainBoard_size)) {
-            start_of_frame = true;
-            length = c;
-            read_count = 0;
-            // event_queue.call(printf, "Receiving : %d\n", length);
-        } else if (c == 0) {
-            start_of_frame = false;
-            length = 0;
-            read_count = 0;
-            ai_message = IAToMainBoard_init_zero;
-            event_queue.call(apply_motor_speed);
-        }
+    length = data[0];
+
+    if (length == 0) {
+        event_queue.call(apply_motor_speed);
     } else {
-        serial_port.read(&read_buffer[read_count], 1);
-        read_count++;
-        if (read_count == length) {
-            read_count = 0;
-            start_of_frame = false;
+        /* Try to decode protobuf response */
+        /* Create a stream that reads from the buffer. */
+        pb_istream_t rx_stream = pb_istream_from_buffer(&data[1], length);
 
-            // event_queue.call(printf, "Parsing !\n");
+        /* Now we are ready to decode the message. */
+        bool status = pb_decode(&rx_stream, IAToMainBoard_fields, &ai_message);
 
-            /* Try to decode protobuf response */
-            ai_message = IAToMainBoard_init_zero;
-
-            /* Create a stream that reads from the buffer. */
-            pb_istream_t rx_stream = pb_istream_from_buffer(read_buffer, length);
-
-            /* Now we are ready to decode the message. */
-            bool status = pb_decode(&rx_stream, IAToMainBoard_fields, &ai_message);
-
-            /* Check for errors... */
-            if (!status) {
-                event_queue.call(printf, "Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+        /* Check for errors... */
+        if (!status) {
+            event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+        } else {
+            event_queue.call(apply_motor_speed);
+            if (ai_message.kicker_cmd == Kicker::Kicker_KICK1) {
+                kicker.kick1(ai_message.kick_power);
+                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+            }
+            if (ai_message.kicker_cmd == Kicker::Kicker_KICK2) {
+                kicker.kick2(ai_message.kick_power);
+                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+            }
+            if (ai_message.dribbler == true) {
+                dribbler.set_speed(400);
             } else {
-                event_queue.call(apply_motor_speed);
+                dribbler.set_speed(0);
+            }
+
+            if (ai_message.charge == 1) {
+                kicker.enable_charge();
+            } else {
+                kicker.disable_charge();
             }
         }
     }
@@ -131,23 +140,23 @@ void on_rx_interrupt()
 
 void print_communication_status()
 {
-    printf("Motor1 TX errors: %d\n", motor1.get_tx_error_count());
-    printf("Motor1 RX errors: %d\n", motor1.get_rx_error_count());
-    printf("Motor2 TX errors: %d\n", motor2.get_tx_error_count());
-    printf("Motor2 RX errors: %d\n", motor2.get_rx_error_count());
-    printf("Motor3 TX errors: %d\n", motor3.get_tx_error_count());
-    printf("Motor3 RX errors: %d\n", motor3.get_rx_error_count());
-    printf("Motor4 TX errors: %d\n", motor4.get_tx_error_count());
-    printf("Motor4 RX errors: %d\n", motor4.get_rx_error_count());
+    printf("Motor1 TX errors: %ld\n", motor1.get_tx_error_count());
+    printf("Motor1 RX errors: %ld\n", motor1.get_rx_error_count());
+    printf("Motor2 TX errors: %ld\n", motor2.get_tx_error_count());
+    printf("Motor2 RX errors: %ld\n", motor2.get_rx_error_count());
+    printf("Motor3 TX errors: %ld\n", motor3.get_tx_error_count());
+    printf("Motor3 RX errors: %ld\n", motor3.get_rx_error_count());
+    printf("Motor4 TX errors: %ld\n", motor4.get_tx_error_count());
+    printf("Motor4 RX errors: %ld\n", motor4.get_rx_error_count());
 }
 
 int main()
 {
     driver_spi.frequency(1000000);
 
-    // Remote
-    serial_port.baud(115200);
-    serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
+    // // Remote
+    // serial_port.baud(115200);
+    // serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
 
     motor1.set_communication_period(10);
     motor2.set_communication_period(10);
@@ -159,7 +168,14 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-    event_queue.call_every(1s, print_communication_status);
+    // event_queue.call_every(1s, print_communication_status);
+
+    // Radio
+    RF_app rf_app1(
+            &radio1, RF_app::RFAppMode::RX, RF_FREQ_1, com_addr1_to_listen, IAToMainBoard_size + 1);
+    rf_app1.print_setup();
+    rf_app1.attach_rx_callback(&on_rx_interrupt);
+    rf_app1.run();
 
     event_queue.dispatch_forever();
 

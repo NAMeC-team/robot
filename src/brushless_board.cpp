@@ -24,6 +24,7 @@ Brushless_board::Brushless_board(SPI *spi, PinName chip_select):
 Brushless_board::Brushless_error Brushless_board::send_message()
 {
     MainBoardToBrushless message = MainBoardToBrushless_init_zero;
+    memset(_brushless_tx_buffer, 0, sizeof(_brushless_tx_buffer));
 
     /* Create a stream that will write to our buffer. */
     pb_ostream_t tx_stream
@@ -44,7 +45,7 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Then just check for any errors.. */
     if (!status) {
-        printf("Encoding failed: %s\n", PB_GET_ERROR(&tx_stream));
+        printf("[BRUSHLESS] Encoding failed: %s\n", PB_GET_ERROR(&tx_stream));
         return Brushless_error::ENCODE_ERROR;
     }
 
@@ -82,7 +83,7 @@ Brushless_board::Brushless_error Brushless_board::send_message()
 
     /* Check for errors... */
     if (!status) {
-        printf("Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+        printf("[BRUSHLESS] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         _rx_error_count++;
         return Brushless_error::DECODE_ERROR;
     }
