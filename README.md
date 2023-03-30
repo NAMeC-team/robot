@@ -23,16 +23,16 @@ To clone **and** deploy the project in one command, use `mbed import` and skip t
 target enabling instructions:
 
 ```shell
-mbed import https://github.com/NAMeC-SSL/base_station.git base_station
+mbed import https://github.com/NAMeC-SSL/robot.git robot
 ```
 
 Alternatively:
 
-- Clone to "mainboard" and enter it:
+- Clone to "robot" and enter it:
 
   ```shell
-  git clone https://github.com/NAMeC-SSL/base_station.git base_station
-  cd mainboard
+  git clone https://github.com/NAMeC-SSL/robot.git robot
+  cd robot
   ```
 
 - Deploy software requirements with:
