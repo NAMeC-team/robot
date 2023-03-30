@@ -9,5 +9,6 @@ sensor-data-protocol/
 ssl-kicker/
 ssl-mainboard/
 zest-core-stm32l4a6rg/
+swo/
 
 # Do NOT ignore files below
