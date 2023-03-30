@@ -2,4 +2,12 @@
 projectfiles
 *.py*
 
+mbed-os/
+nanopb/
+nordic-nrf24l01/
+sensor-data-protocol/
+ssl-kicker/
+ssl-mainboard/
+zest-core-stm32l4a6rg/
+
 # Do NOT ignore files below
