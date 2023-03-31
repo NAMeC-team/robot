@@ -1,33 +1,32 @@
-/*
- * Copyright (c) 2022, CATIE
- * SPDX-License-Identifier: Apache-2.0
- */
-#include "brushless_board.h"
-#include "dribbler.h"
-#include "mbed.h"
-#include "nrf24l01.h"
-#include "rf_app.h"
-#include "ssl-kicker.h"
-#include "swo.h"
+#include <mbed.h>
+#include <radio_command.pb.h>
+#include <swo.h>
 
-namespace {
+#include "motor/brushless_board.h"
+#include "motor/dribbler.h"
+#include "rf_app.h"
+#include "sensor/ir.h"
+#include "ssl-kicker.h"
+
 #define HALF_PERIOD 500ms
 #define ROBOT_RADIUS 0.085
-#define RF_FREQ_1 2402
-#define RF_FREQ_2 2460
-}
 
+// Radio frequency
+#define RF_FREQUENCY_1 2402
+#define RF_FREQUENCY_2 2460
 using namespace sixtron;
-SWO swo;
+
+static SWO swo;
 
 FileHandle *mbed::mbed_override_console(int fd)
 {
     return &swo;
 }
 
-/* Peripherals */
-static DigitalOut led1(LED1);
-static UnbufferedSerial serial_port(USBTX, USBRX);
+DigitalOut led(LED1);
+
+EventQueue event_queue;
+
 static SPI driver_spi(SPI_MOSI_DRV, SPI_MISO_DRV, SPI_SCK_DRV);
 static Mutex spi_mutex;
 static Brushless_board motor1(&driver_spi, SPI_CS_DRV1, &spi_mutex);
@@ -35,16 +34,11 @@ static Brushless_board motor2(&driver_spi, SPI_CS_DRV2, &spi_mutex);
 static Brushless_board motor3(&driver_spi, SPI_CS_DRV3, &spi_mutex);
 static Brushless_board motor4(&driver_spi, SPI_CS_DRV4, &spi_mutex);
 static Dribbler dribbler(&driver_spi, SPI_CS_DRV5, &spi_mutex);
-DigitalOut cs_drv5(SPI_CS_DRV5, 1);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
 static Timeout timeout;
 
-// Kicker
 static KICKER kicker(KCK_EN, KCK1, KCK2);
-
-/* RTOS */
-EventQueue event_queue;
 
 /* Struct definitions */
 typedef struct _Motor_speed {
@@ -54,9 +48,8 @@ typedef struct _Motor_speed {
     float speed4;
 } Motor_speed;
 
-// Global variables
 static uint8_t com_addr1_to_listen[5] = { 0x22, 0x87, 0xe8, 0xf9, 0x01 };
-IAToMainBoard ai_message = IAToMainBoard_init_zero;
+RadioCommand ai_message = RadioCommand_init_zero;
 
 void compute_motor_speed(
         Motor_speed *motor_speed, float normal_speed, float tangential_speed, float angular_speed)
@@ -73,8 +66,8 @@ void compute_motor_speed(
 
 void apply_motor_speed()
 {
-    if (ai_message.normal_speed != 0 || ai_message.tangential_speed != 0
-            || ai_message.angular_speed != 0) {
+    if (ai_message.normal_velocity != 0 || ai_message.tangential_velocity != 0
+            || ai_message.angular_velocity != 0) {
         // printf("Normal speed: %f\n", ai_message.normal_speed);
         // printf("tangential speed: %f\n", ai_message.tangential_speed);
         // printf("angular speed: %f\n", ai_message.angular_speed);
@@ -82,9 +75,9 @@ void apply_motor_speed()
 
     Motor_speed motor_speed;
     compute_motor_speed(&motor_speed,
-            ai_message.normal_speed,
-            ai_message.tangential_speed,
-            ai_message.angular_speed);
+            ai_message.normal_velocity,
+            ai_message.tangential_velocity,
+            ai_message.angular_velocity);
 
     motor1.set_state(Commands_RUN);
     motor2.set_state(Commands_RUN);
@@ -111,10 +104,10 @@ void stop_motors()
 void on_rx_interrupt(uint8_t *data, size_t data_size)
 {
     static uint8_t length = 0;
-    ai_message = IAToMainBoard_init_zero;
+    ai_message = RadioCommand_init_zero;
 
     length = data[0];
-
+    event_queue.call(printf, "LENGTH: %d\n", length);
     if (length == 0) {
         event_queue.call(apply_motor_speed);
     } else {
@@ -123,22 +116,22 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
         pb_istream_t rx_stream = pb_istream_from_buffer(&data[1], length);
 
         /* Now we are ready to decode the message. */
-        bool status = pb_decode(&rx_stream, IAToMainBoard_fields, &ai_message);
+        bool status = pb_decode(&rx_stream, RadioCommand_fields, &ai_message);
 
         /* Check for errors... */
         if (!status) {
             event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
             event_queue.call(apply_motor_speed);
-            if (ai_message.kicker_cmd == Kicker::Kicker_KICK1) {
+            if (ai_message.kick == Kicker::Kicker_CHIP) {
                 kicker.kick1(ai_message.kick_power);
                 event_queue.call(printf, "Power %f\n", ai_message.kick_power);
             }
-            if (ai_message.kicker_cmd == Kicker::Kicker_KICK2) {
+            if (ai_message.kick == Kicker::Kicker_FLAT) {
                 kicker.kick2(ai_message.kick_power);
                 event_queue.call(printf, "Power %f\n", ai_message.kick_power);
             }
-            if (ai_message.dribbler == true) {
+            if (ai_message.dribbler > 0.0) {
                 dribbler.set_state(Commands_RUN);
                 dribbler.set_speed(400);
                 dribbler.send_message();
@@ -189,11 +182,14 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-    // event_queue.call_every(1s, print_communication_status);
+    event_queue.call_every(1s, print_communication_status);
 
     // Radio
-    RF_app rf_app1(
-            &radio1, RF_app::RFAppMode::RX, RF_FREQ_1, com_addr1_to_listen, IAToMainBoard_size + 1);
+    RF_app rf_app1(&radio1,
+            RF_app::RFAppMode::RX,
+            RF_FREQUENCY_1,
+            com_addr1_to_listen,
+            RadioCommand_size + 1);
     rf_app1.print_setup();
     rf_app1.attach_rx_callback(&on_rx_interrupt);
     rf_app1.run();

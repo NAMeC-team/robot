@@ -74,8 +74,7 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     uint8_t response_length = _brushless_rx_buffer[0];
 
     /* Create a stream that reads from the buffer. */
-    pb_istream_t rx_stream
-            = pb_istream_from_buffer(_brushless_rx_buffer + 5, response_length);
+    pb_istream_t rx_stream = pb_istream_from_buffer(_brushless_rx_buffer + 5, response_length);
 
     /* Now we are ready to decode the message. */
     status = pb_decode(&rx_stream, BrushlessToMainBoard_fields, &response);
@@ -90,10 +89,11 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     /* Check response CRC */
     uint32_t response_crc = 0;
     ct.compute((uint8_t *)_brushless_rx_buffer + 5, response_length, &response_crc);
-    if (response_crc == *((uint32_t *) (_brushless_rx_buffer + 1))) {
+    if (response_crc == *((uint32_t *)(_brushless_rx_buffer + 1))) {
         // printf("CRC OK\n");
     } else {
-        // printf("CRC_ERROR 0x%x 0x%x\n", response_crc, *((uint32_t *) (_brushless_rx_buffer + 1)));
+        // printf("CRC_ERROR 0x%x 0x%x\n", response_crc, *((uint32_t *) (_brushless_rx_buffer +
+        // 1)));
         _rx_error_count++;
         return Brushless_error::DECODE_ERROR;
     }

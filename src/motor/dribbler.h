@@ -9,7 +9,7 @@
 #include "pb.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
-#include "ssl_data.pb.h"
+#include "brushless.pb.h"
 
 class Dribbler {
 public:
