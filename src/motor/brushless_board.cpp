@@ -8,7 +8,7 @@
 Brushless_board::Brushless_board(SPI *spi, PinName chip_select, Mutex *spi_mutex):
         _communication_thread(),
         _event_queue(),
-        _communication_id(0),
+        _communication_id(ROBOT_ID),
         _period_ms(100),
         _spi(spi),
         _chip_select(chip_select, 1),
