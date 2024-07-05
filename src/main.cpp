@@ -12,8 +12,8 @@
 #define ROBOT_RADIUS 0.085
 
 // Radio frequency
-#define RF_FREQUENCY_1 2402
-#define RF_FREQUENCY_2 2460
+#define RF_FREQUENCY_1 2508
+#define RF_FREQUENCY_2 2510
 using namespace sixtron;
 
 static SWO swo;
