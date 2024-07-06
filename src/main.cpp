@@ -1,10 +1,10 @@
 #include <mbed.h>
 #include <radio_command.pb.h>
 #include <swo.h>
+#include <rf_app.h>
 
 #include "motor/brushless_board.h"
 #include "motor/dribbler.h"
-#include "rf_app.h"
 #include "sensor/ir.h"
 #include "ssl-kicker.h"
 
