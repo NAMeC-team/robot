@@ -1,5 +1,6 @@
 #include <mbed.h>
 #include <radio_command.pb.h>
+#include <radio_feedback.pb.h>
 #include <swo.h>
 #include <rf_app.h>
 
@@ -101,8 +102,26 @@ void stop_motors()
     motor4.set_speed(0.0);
 }
 
+/**
+ * Assumes that TX mode has transmitted at least one packet
+ *
+ * Can be used as a TX_DS (Transmission Data Sent) callback,
+ * sets CE=0 to switch to Standby-1 mode,
+ * then sets PRIM_RX=1 and CE=1, and waits 130μs to
+ * get into RX mode. Maintains CE=1 when finished
+ */
+void switch_to_rx() {
+    radio1.set_mode(NRF24L01::OperationMode::RECEIVER); // sets PRIM_RX=1
+    radio1.set_rf_frequency(RF_FREQUENCY_1);
+    radio1.set_payload_size(NRF24L01::RxAddressPipe::RX_ADDR_P0, RadioCommand_size);
+    radio1.set_com_ce(0); // switch to Standby-I
+    wait_us(20);
+    radio1.set_com_ce(1); // switch to RX Settling then RX Mode
+}
+
 void on_rx_interrupt(uint8_t *data, size_t data_size)
 {
+    // parse received command
     static uint8_t length = 0;
     ai_message = RadioCommand_init_zero;
 
@@ -149,8 +168,41 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             }
         }
     }
+
+    // reset timeout to stop motors if no command in 500ms
     timeout.detach();
     timeout.attach(stop_motors, 500ms);
+
+    // send TX feedback on other frequency
+    radio1.stop_listening();
+    radio1.attach_transmitting_payload(
+        NRF24L01::RxAddressPipe::RX_ADDR_P0,
+        com_addr1_to_listen,
+        RadioFeedback_size
+    ); // sets TX address and payload size
+    radio1.set_rf_frequency(RF_FREQUENCY_2);
+
+    // prepare message
+    RadioFeedback radio_feedback = RadioFeedback_init_zero;
+    radio_feedback.ir = true; // ir::present() // TODO: true is for testing
+    radio_feedback.robot_id = ROBOT_ID;
+
+    // prepare packet
+    uint8_t tx_buffer[RadioFeedback_size + 1];
+    memset(tx_buffer, 0, sizeof(tx_buffer));
+    pb_ostream_t tx_stream = pb_ostream_from_buffer(tx_buffer + 1, RadioFeedback_size);
+    bool status = pb_encode(&tx_stream, RadioFeedback_fields, &radio_feedback);
+
+    if (!status) {
+        switch_to_rx();
+        return;
+    }
+
+    size_t message_length = tx_stream.bytes_written;
+    tx_buffer[0] = message_length;
+    radio1.send_packet(tx_buffer, RadioFeedback_size + 1);
+
+    // the TX_DS irq and our attached callback will switch us back to RX mode
 }
 
 void print_communication_status()
@@ -187,12 +239,14 @@ int main()
 
     // Radio
     RF_app rf_app1(&radio1,
+            RF_app::RFAppInterrupt::on_RX_TX,
             RF_app::RFAppMode::RX,
             RF_FREQUENCY_1,
             com_addr1_to_listen,
             RadioCommand_size + 1);
     rf_app1.print_setup();
     rf_app1.attach_rx_callback(&on_rx_interrupt);
+    rf_app1.attach_tx_ds_callback(&switch_to_rx);
     rf_app1.run();
 
     event_queue.dispatch_forever();
