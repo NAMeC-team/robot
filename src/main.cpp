@@ -122,6 +122,8 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
         if (!status) {
             event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
+			if (ai_message.robot_id != ROBOT_ID)
+				return;
             event_queue.call(apply_motor_speed);
             if (ai_message.kick == Kicker::Kicker_CHIP) {
                 kicker.kick1(ai_message.kick_power);
@@ -133,7 +135,10 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             }
             if (ai_message.dribbler > 0.0) {
                 dribbler.set_state(Commands_RUN);
-                dribbler.set_speed(400);
+				float dribbler_speed = ai_message.dribbler;
+				if (dribbler_speed > 400.)
+					dribbler_speed = 400.;
+                dribbler.set_speed(dribbler_speed);
                 dribbler.send_message();
             } else {
                 dribbler.set_state(Commands_STOP);
@@ -186,6 +191,7 @@ int main()
 
     // Radio
     RF_app rf_app1(&radio1,
+			RF_app::RFAppInterrupt::on_RX,
             RF_app::RFAppMode::RX,
             RF_FREQUENCY_1,
             com_addr1_to_listen,
