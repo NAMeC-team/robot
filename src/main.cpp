@@ -111,6 +111,7 @@ void stop_motors()
  * get into RX mode. Maintains CE=1 when finished
  */
 void switch_to_rx() {
+    radio1.clear_interrupt_flags();
     radio1.set_mode(NRF24L01::OperationMode::RECEIVER); // sets PRIM_RX=1
     radio1.set_rf_frequency(RF_FREQUENCY_1);
     radio1.set_payload_size(NRF24L01::RxAddressPipe::RX_ADDR_P0, RadioCommand_size);
@@ -177,6 +178,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
 
     // send TX feedback on other frequency
     radio1.stop_listening();
+    radio1.set_mode(NRF24L01::OperationMode::TRANSCEIVER);
     radio1.attach_transmitting_payload(
         NRF24L01::RxAddressPipe::RX_ADDR_P0,
         com_addr1_to_listen,
