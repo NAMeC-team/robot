@@ -122,6 +122,8 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
         if (!status) {
             event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
+            if (ai_message.robot_id != ROBOT_ID)
+                return;
             event_queue.call(apply_motor_speed);
             if (ai_message.kick == Kicker::Kicker_CHIP) {
                 kicker.kick1(ai_message.kick_power);
