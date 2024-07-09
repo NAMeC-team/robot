@@ -10,6 +10,7 @@
 
 #define HALF_PERIOD 500ms
 #define ROBOT_RADIUS 0.085
+#define MAX_DRIBBLER_SPEED 400.
 
 // Radio frequency
 #define RF_FREQUENCY_1 2509
@@ -145,7 +146,10 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             }
             if (ai_message.dribbler > 0.0) {
                 dribbler.set_state(Commands_RUN);
-                dribbler.set_speed(400);
+                uint8_t dribbler_speed = ai_message.dribbler;
+                if (dribbler_speed > MAX_DRIBBLER_SPEED)
+                    dribbler_speed = MAX_DRIBBLER_SPEED;
+                dribbler.set_speed(dribbler_speed);
                 dribbler.send_message();
             } else {
                 dribbler.set_state(Commands_STOP);
