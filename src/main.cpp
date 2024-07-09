@@ -225,13 +225,73 @@ void print_communication_status()
     printf("Motor4 RX errors: %ld\n", motor4.get_rx_error_count());
 }
 
+void set_dribbler_speed(float dribbler_speed) {
+    if (dribbler_speed > 0.0) {
+        dribbler.set_state(Commands_RUN);
+        if (dribbler_speed > MAX_DRIBBLER_SPEED)
+            dribbler_speed = MAX_DRIBBLER_SPEED;
+        dribbler.set_speed(dribbler_speed);
+        dribbler.send_message();
+    } else {
+        dribbler.set_state(Commands_STOP);
+        dribbler.set_speed(0);
+        dribbler.send_message();
+    }
+}
+
+
+void on_serial_rx_interrupt() {
+    static bool start_of_frame = false;
+    static uint8_t length = 0;
+    static uint8_t read_count = 0;
+    static uint8_t read_buffer[PCToBase_size];
+    uint8_t c;
+
+    if (!start_of_frame) {
+        //TODO: if we exceed 6 robots, the size of the packet exceeds 8 bits,
+        // thus the length will be stored on 2 bytes, making this algorithm invalid
+        // not a problem for DivB, but it will be a problem for DivA
+        serial_port.read(&c, 1);
+        if (c > 0 && c <= (PCToBase_size)) { // Get packet length
+            start_of_frame = true;
+            length = c;
+            read_count = 0;
+            // event_queue.call(printf, "Receiving : %d\n", length);
+        } else if (c == 0) { // When length is 0 it is the default protobuf packet
+            start_of_frame = false;
+            length = 0;
+            read_count = 0;
+            // TODO: Make something
+        }
+    } else {
+        serial_port.read(&read_buffer[read_count], 1);
+        read_count++;
+        if (read_count == length) {
+            read_count = 0;
+            start_of_frame = false;
+            pb_istream_t rx_stream = pb_istream_from_buffer(read_buffer, length);
+            PCToBase message = PCToBase_init_zero;
+            bool status = pb_decode(&rx_stream, PCToBase_fields, &message);
+            if (!status) {
+                return;
+            }
+            if (message.commands_count <= 0) {
+                return;
+            }
+            uint8_t dribbler_speed = message.commands[0].dribbler;
+            event_queue.call(set_dribbler_speed, dribbler_speed);
+            led = true;
+        }
+    }
+}
+
 int main()
 {
     driver_spi.frequency(500000);
 
     // // Remote
-    // serial_port.baud(115200);
-    // serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
+     serial_port.baud(115200);
+     serial_port.attach(&on_serial_rx_interrupt, SerialBase::RxIrq);
 
     motor1.set_communication_period(10);
     motor2.set_communication_period(10);
