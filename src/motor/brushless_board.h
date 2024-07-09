@@ -5,7 +5,7 @@
 #ifndef BRUSHLESS_BOARD_H_
 #define BRUSHLESS_BOARD_H_
 
-#define ROBOT_ID 3
+#define ROBOT_ID 44
 
 #include "brushless.pb.h"
 #include "mbed.h"
