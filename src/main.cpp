@@ -192,7 +192,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
 
     // prepare message
     RadioFeedback radio_feedback = RadioFeedback_init_zero;
-    radio_feedback.ir = true; // ir::present() // TODO: true is for testing
+    radio_feedback.ir = ir::present();
     radio_feedback.robot_id = ROBOT_ID;
 
     // prepare packet
