@@ -68,12 +68,11 @@ void compute_motor_speed(
 
 void apply_motor_speed()
 {
-    if (ai_message.normal_velocity != 0 || ai_message.tangential_velocity != 0
-            || ai_message.angular_velocity != 0) {
-        // printf("Normal speed: %f\n", ai_message.normal_speed);
-        // printf("tangential speed: %f\n", ai_message.tangential_speed);
-        // printf("angular speed: %f\n", ai_message.angular_speed);
-    }
+    // avoid sending an invalid command to the robot
+    if (isnan(ai_message.normal_velocity)
+        || isnan(ai_message.tangential_velocity)
+        || isnan(ai_message.angular_velocity))
+        return;
 
     Motor_speed motor_speed;
     compute_motor_speed(&motor_speed,
