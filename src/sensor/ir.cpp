@@ -3,7 +3,7 @@
 #define IR_THRESHOLD 0.6
 
 namespace ir {
-    float value = 0.0;
+    float value = 1.0;
     DigitalOut emit(IR_EMIT, 0.0);
     AnalogIn receive(IR_RECEIVE);
 
