@@ -104,7 +104,6 @@ void stop_motors()
     motor2.set_speed(0.0);
     motor3.set_speed(0.0);
     motor4.set_speed(0.0);
-    wait_us(200);
     motor1.set_state(Commands_STOP);
     motor2.set_state(Commands_STOP);
     motor3.set_state(Commands_STOP);
