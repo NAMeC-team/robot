@@ -14,8 +14,8 @@
 #define MAX_DRIBBLER_SPEED 400.
 
 // Radio frequency
-#define RF_FREQUENCY_1 2508
-#define RF_FREQUENCY_2 2510
+#define RF_FREQUENCY_1 2509
+#define RF_FREQUENCY_2 2511
 using namespace sixtron;
 
 static SWO swo;
