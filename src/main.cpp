@@ -189,6 +189,7 @@ int main()
     event_queue.call_every(1s, print_communication_status);
 
     // Radio
+    radio1.set_crc(NRF24L01::CRCwidth::_16bits);
     RF_app rf_app1(&radio1,
             RF_app::RFAppMode::RX,
             RF_FREQUENCY_1,
