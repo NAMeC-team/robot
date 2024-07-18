@@ -146,7 +146,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             }
             if (ai_message.dribbler > 0.0) {
                 dribbler.set_state(Commands_RUN);
-                uint8_t dribbler_speed = ai_message.dribbler;
+                float dribbler_speed = ai_message.dribbler;
                 if (dribbler_speed > MAX_DRIBBLER_SPEED)
                     dribbler_speed = MAX_DRIBBLER_SPEED;
                 dribbler.set_speed(dribbler_speed);
