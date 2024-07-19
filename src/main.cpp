@@ -152,13 +152,19 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             if (ai_message.robot_id != ROBOT_ID)
                 return;
             event_queue.call(apply_motor_speed);
-            if (ai_message.kick == Kicker::Kicker_CHIP) {
-                kicker.kick1(ai_message.kick_power);
-                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
-            }
-            if (ai_message.kick == Kicker::Kicker_FLAT) {
-                kicker.kick2(ai_message.kick_power);
-                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+
+            // kick only if IR is present
+            ir::compute();
+            if (ir::present()) {
+                if (ai_message.kick == Kicker::Kicker_CHIP) {
+                    kicker.kick1(ai_message.kick_power);
+                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+                }
+                if (ai_message.kick == Kicker::Kicker_FLAT) {
+                    kicker.kick2(ai_message.kick_power);
+                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+                }
+
             }
             if (ai_message.dribbler > 0.0) {
                 dribbler.set_state(Commands_RUN);
