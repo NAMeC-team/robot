@@ -202,6 +202,16 @@ void print_communication_status()
     printf("Motor4 RX errors: %ld\n", motor4.get_rx_error_count());
 }
 
+//UnbufferedSerial serial_port(USBTX, USBRX);
+
+void write_ir_to_serial() {
+    char buffer[32];
+    memset(buffer, 0, sizeof(buffer));
+    ir::compute();
+    sprintf(buffer, "IR : %s\n", ir::present() ? "true" : "false");
+    serial_port.write(buffer, sizeof(buffer));
+}
+
 int main()
 {
     driver_spi.frequency(500000);
@@ -220,7 +230,7 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-    event_queue.call_every(1s, print_communication_status);
+//    event_queue.call_every(1ms, write_ir_to_serial);
 
     // Radio
     radio1.set_crc(NRF24L01::CRCwidth::_16bits);
