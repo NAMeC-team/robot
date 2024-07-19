@@ -133,7 +133,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
     ai_message = RadioCommand_init_zero;
 
     length = data[0];
-    event_queue.call(printf, "LENGTH: %d\n", length);
+//    event_queue.call(printf, "LENGTH: %d\n", length);
     if (length == 0) {
         event_queue.call(stop_motors);
     } else {
@@ -147,7 +147,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
 
         /* Check for errors... */
         if (!status) {
-            event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+//            event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
             if (ai_message.robot_id != ROBOT_ID)
                 return;
@@ -158,11 +158,11 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             if (ir::present()) {
                 if (ai_message.kick == Kicker::Kicker_CHIP) {
                     kicker.kick1(ai_message.kick_power);
-                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+//                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
                 }
                 if (ai_message.kick == Kicker::Kicker_FLAT) {
                     kicker.kick2(ai_message.kick_power);
-                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+//                    event_queue.call(printf, "Power %f\n", ai_message.kick_power);
                 }
 
             }
