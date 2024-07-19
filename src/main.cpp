@@ -24,6 +24,22 @@ FileHandle *mbed::mbed_override_console(int fd)
     return &swo;
 }
 
+/**
+ + * Address to send commands to, and to receive feedback on for each robot
+ + * Both antennas send and listen on the same address, but on
+ + * different frequencies
+ + * Robot 0 will use the same address to receive commands & send feedbacks
+ + */
+static uint8_t com_addresses_robots[7][5] = {
+    { 0x22, 0x87, 0xe8, 0xf9, 0x00 },
+    { 0x22, 0x87, 0xe8, 0xf9, 0x01 },
+    { 0x22, 0x87, 0xe8, 0xf9, 0x02 },
+    { 0x22, 0x87, 0xe8, 0xf9, 0x03 },
+    { 0x22, 0x87, 0xe8, 0xf9, 0x04 },
+    { 0x22, 0x87, 0xe8, 0xf9, 0x05 },
+    { 0x22, 0x87, 0xe8, 0xf9, 0x06 }
+};
+
 DigitalOut led(LED1);
 
 EventQueue event_queue;
@@ -205,7 +221,7 @@ int main()
     RF_app rf_app1(&radio1,
             RF_app::RFAppMode::RX,
             RF_FREQUENCY_1,
-            com_addr1_to_listen,
+            com_addresses_robots[ROBOT_ID],
             RadioCommand_size + 1);
     rf_app1.print_setup();
     rf_app1.attach_rx_callback(&on_rx_interrupt);
