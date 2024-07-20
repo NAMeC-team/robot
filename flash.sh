@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+set -e
 if [ $# -lt 1 ]
 then
   >&2 printf "Missing robot id\nUsage : %s ROBOT_ID\n" "${0}"
