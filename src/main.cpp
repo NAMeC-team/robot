@@ -204,13 +204,13 @@ void print_communication_status()
 
 //UnbufferedSerial serial_port(USBTX, USBRX);
 
-void write_ir_to_serial() {
-    char buffer[32];
-    memset(buffer, 0, sizeof(buffer));
-    ir::compute();
-    sprintf(buffer, "IR : %s\n", ir::present() ? "true" : "false");
-    serial_port.write(buffer, sizeof(buffer));
-}
+//void write_ir_to_serial() {
+//    char buffer[32];
+//    memset(buffer, 0, sizeof(buffer));
+//    ir::compute();
+//    sprintf(buffer, "IR : %s\n", ir::present() ? "true" : "false");
+//    serial_port.write(buffer, sizeof(buffer));
+//}
 
 int main()
 {
