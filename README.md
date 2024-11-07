@@ -12,6 +12,14 @@ The following boards are required:
 
 ### Software requirements
 
+You need to install the following [Setup tools](https://6tron.io/ressources_logicielles/mbed/setup-tools#6tron-flash-tool) (from the website of the CATIE).
+Install the following using their website :
+- Pipx
+- GNUM Arm Embedded Toolchain
+- Mbed CLI
+- 6TRON Flash Tool
+- SEGGER J-Link Debug Probe drivers
+
 mainboard makes use of the following libraries (automatically
 imported by `mbed deploy` or `mbed import`):
 
@@ -53,7 +61,7 @@ mbed compile
 ```
 
 Program the target device with a Segger J-Link debug probe and
-[`sixtron_flash`](https://gitlab.com/catie_6tron/6tron-flash) tool:
+the `sixtron_flash` tool, that you installed with in the "Software Prerequisites" section.
 
 ```shell
 sixtron_flash stm32l4a6rg BUILD/ZEST_CORE_STM32L4A6RG/GCC_ARM/robot.elf
