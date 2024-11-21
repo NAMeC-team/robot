@@ -93,18 +93,6 @@ void apply_motor_speed()
 void stop_motors()
 {
     led = false;
-    // TODO: normally, just setting state to Commands_STOP
-    // should halt the motors, but it doesn't
-    // even though the underlying code is valid (brushless motors code)
-    motor1.set_state(Commands_RUN);
-    motor2.set_state(Commands_RUN);
-    motor3.set_state(Commands_RUN);
-    motor4.set_state(Commands_RUN);
-    motor1.set_speed(0.0);
-    motor2.set_speed(0.0);
-    motor3.set_speed(0.0);
-    motor4.set_speed(0.0);
-    wait_us(200);
     motor1.set_state(Commands_STOP);
     motor2.set_state(Commands_STOP);
     motor3.set_state(Commands_STOP);
