@@ -10,5 +10,6 @@ ssl-kicker/
 ssl-mainboard/
 zest-core-stm32l4a6rg/
 swo/
+nrf24l01-rf-app/
 
 # Do NOT ignore files below
