@@ -24,8 +24,6 @@ FileHandle *mbed::mbed_override_console(int fd)
     return &swo;
 }
 
-DigitalOut led(LED1);
-
 EventQueue event_queue;
 
 static SPI driver_spi(SPI_MOSI_DRV, SPI_MISO_DRV, SPI_SCK_DRV);
@@ -92,7 +90,6 @@ void apply_motor_speed()
 
 void stop_motors()
 {
-    led = false;
     motor1.set_state(Commands_STOP);
     motor2.set_state(Commands_STOP);
     motor3.set_state(Commands_STOP);
@@ -109,7 +106,6 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
     if (length == 0) {
         event_queue.call(stop_motors);
     } else {
-        led = true;
         /* Try to decode protobuf response */
         /* Create a stream that reads from the buffer. */
         pb_istream_t rx_stream = pb_istream_from_buffer(&data[1], length);
@@ -172,10 +168,6 @@ int main()
 {
     driver_spi.frequency(500000);
 
-    // // Remote
-    // serial_port.baud(115200);
-    // serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
-
     motor1.set_communication_period(10);
     motor2.set_communication_period(10);
     motor3.set_communication_period(10);
@@ -186,7 +178,7 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-    event_queue.call_every(1s, print_communication_status);
+//    event_queue.call_every(1s, print_communication_status);
 
     // Radio
     RF_app rf_app1(&radio1,
