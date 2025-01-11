@@ -26,8 +26,11 @@ FileHandle *mbed::mbed_override_console(int fd)
 
 EventQueue event_queue;
 
+// SPI handler
 static SPI driver_spi(SPI_MOSI_DRV, SPI_MISO_DRV, SPI_SCK_DRV);
 static Mutex spi_mutex;
+
+// motors of the robot
 static Brushless_board motor1(&driver_spi, SPI_CS_DRV1, &spi_mutex);
 static Brushless_board motor2(&driver_spi, SPI_CS_DRV2, &spi_mutex);
 static Brushless_board motor3(&driver_spi, SPI_CS_DRV3, &spi_mutex);
@@ -35,7 +38,7 @@ static Brushless_board motor4(&driver_spi, SPI_CS_DRV4, &spi_mutex);
 static Dribbler dribbler(&driver_spi, SPI_CS_DRV5, &spi_mutex);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
-static Timeout timeout;
+static Timeout timeout; // used to stop motors when no command received after a certain time
 
 static KICKER kicker(KCK_EN, KCK1, KCK2);
 
@@ -47,9 +50,15 @@ typedef struct _Motor_speed {
     float speed4;
 } Motor_speed;
 
+// RX address at which packets are received from the mainboard
 static uint8_t com_addr1_to_listen[5] = { 0x22, 0x87, 0xe8, 0xf9, 0x01 };
+// Current AI command
 RadioCommand ai_message = RadioCommand_init_zero;
 
+/**
+ * Compute motors speeds required to be sent to motors
+ * @param motor_speed Resulting motor speeds
+ */
 void compute_motor_speed(
         Motor_speed *motor_speed, float normal_speed, float tangential_speed, float angular_speed)
 {
@@ -63,15 +72,11 @@ void compute_motor_speed(
             + ROBOT_RADIUS * angular_speed;
 }
 
+/**
+ * Sends speed commands to all motors
+ */
 void apply_motor_speed()
 {
-    if (ai_message.normal_velocity != 0 || ai_message.tangential_velocity != 0
-            || ai_message.angular_velocity != 0) {
-        // printf("Normal speed: %f\n", ai_message.normal_speed);
-        // printf("tangential speed: %f\n", ai_message.tangential_speed);
-        // printf("angular speed: %f\n", ai_message.angular_speed);
-    }
-
     Motor_speed motor_speed;
     compute_motor_speed(&motor_speed,
             ai_message.normal_velocity,
@@ -88,6 +93,9 @@ void apply_motor_speed()
     motor4.set_speed(motor_speed.speed4);
 }
 
+/**
+ * Sends a stop command to all motors
+ */
 void stop_motors()
 {
     motor1.set_state(Commands_STOP);
@@ -96,6 +104,11 @@ void stop_motors()
     motor4.set_state(Commands_STOP);
 }
 
+/**
+ * Called whenever we receive a new packet from the
+ * base station
+ * @param data Data packet
+ */
 void on_rx_interrupt(uint8_t *data, size_t data_size)
 {
     static uint8_t length = 0;
@@ -113,7 +126,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
         /* Now we are ready to decode the message. */
         bool status = pb_decode(&rx_stream, RadioCommand_fields, &ai_message);
 
-        /* Check for errors... */
+        /* Apply command if no error occured */
         if (!status) {
             event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
@@ -178,9 +191,6 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-//    event_queue.call_every(1s, print_communication_status);
-
-    // Radio
     RF_app rf_app1(&radio1,
             RF_app::RFAppMode::RX,
             RF_FREQUENCY_1,
