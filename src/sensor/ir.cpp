@@ -4,7 +4,7 @@
 
 namespace ir {
     float value = 0.0;
-    DigitalOut emit(IR_EMIT, 0.0);
+    DigitalOut emit(IR_EMIT, 0.0); // TODO: use PwmOut instead
     AnalogIn receive(IR_RECEIVE);
 
     void compute() {

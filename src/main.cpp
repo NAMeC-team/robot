@@ -15,6 +15,9 @@
 // Radio frequency
 #define RF_FREQUENCY_1 2509
 #define RF_FREQUENCY_2 2511
+
+#define PACKET_LEN (RadioCommand_size + 1)
+
 using namespace sixtron;
 
 static SWO swo;
@@ -50,7 +53,7 @@ typedef struct _Motor_speed {
     float speed4;
 } Motor_speed;
 
-// RX address at which packets are received from the mainboard
+// RX address at which packets are received from the base station
 static uint8_t com_addr1_to_listen[5] = { 0x22, 0x87, 0xe8, 0xf9, 0x01 };
 // Current AI command
 RadioCommand ai_message = RadioCommand_init_zero;
@@ -104,65 +107,78 @@ void stop_motors()
     motor4.set_state(Commands_STOP);
 }
 
-/**
- * Called whenever we receive a new packet from the
- * base station
- * @param data Data packet
- */
-void on_rx_interrupt(uint8_t *data, size_t data_size)
-{
-    static uint8_t length = 0;
-    ai_message = RadioCommand_init_zero;
+void parse_message() {
+    // ignore cmd if not destined for this robot
+    // base station's packet is broadcast across the frequency
+    if (ai_message.robot_id != ROBOT_ID)
+        return;
 
-    length = data[0];
-    event_queue.call(printf, "LENGTH: %d\n", length);
-    if (length == 0) {
-        event_queue.call(stop_motors);
-    } else {
-        /* Try to decode protobuf response */
-        /* Create a stream that reads from the buffer. */
-        pb_istream_t rx_stream = pb_istream_from_buffer(&data[1], length);
+    event_queue.call(apply_motor_speed);
 
-        /* Now we are ready to decode the message. */
-        bool status = pb_decode(&rx_stream, RadioCommand_fields, &ai_message);
-
-        /* Apply command if no error occured */
-        if (!status) {
-            event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
-        } else {
-            if (ai_message.robot_id != ROBOT_ID)
-                return;
-            event_queue.call(apply_motor_speed);
-            if (ai_message.kick == Kicker::Kicker_CHIP) {
-                kicker.kick1(ai_message.kick_power);
-                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
-            }
-            if (ai_message.kick == Kicker::Kicker_FLAT) {
-                kicker.kick2(ai_message.kick_power);
-                event_queue.call(printf, "Power %f\n", ai_message.kick_power);
-            }
-            if (ai_message.dribbler > 0.0) {
-                dribbler.set_state(Commands_RUN);
-                float dribbler_speed = ai_message.dribbler;
-                if (dribbler_speed > MAX_DRIBBLER_SPEED)
-                    dribbler_speed = MAX_DRIBBLER_SPEED;
-                dribbler.set_speed(dribbler_speed);
-                dribbler.send_message();
-            } else {
-                dribbler.set_state(Commands_STOP);
-                dribbler.set_speed(0);
-                dribbler.send_message();
-            }
-
-            if (ai_message.charge == 1) {
-                kicker.enable_charge();
-            } else {
-                kicker.disable_charge();
-            }
-        }
+    if (ai_message.kick == Kicker::Kicker_CHIP) {
+        kicker.kick1(ai_message.kick_power);
+        event_queue.call(printf, "Power %f\n", ai_message.kick_power);
     }
+
+    if (ai_message.kick == Kicker::Kicker_FLAT) {
+        kicker.kick2(ai_message.kick_power);
+        event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+    }
+
+    if (ai_message.dribbler > 0.0) {
+        dribbler.set_state(Commands_RUN);
+        float dribbler_speed = ai_message.dribbler;
+        if (dribbler_speed > MAX_DRIBBLER_SPEED)
+            dribbler_speed = MAX_DRIBBLER_SPEED;
+        dribbler.set_speed(dribbler_speed);
+        dribbler.send_message();
+    } else {
+        dribbler.set_state(Commands_STOP);
+        dribbler.set_speed(0);
+        dribbler.send_message();
+    }
+
+    if (ai_message.charge == 1) {
+        kicker.enable_charge();
+    } else {
+        kicker.disable_charge();
+    }
+
     timeout.detach();
     timeout.attach(stop_motors, 500ms);
+}
+
+void on_rx_interrupt() {
+    static uint8_t buffer[PACKET_LEN];
+    memset(buffer, 0, PACKET_LEN);
+
+    // clear out previous AI message to ensure safety
+    ai_message = RadioCommand_init_zero;
+
+    // read packet from nRF24 module
+    radio1.read_packet(buffer, PACKET_LEN);
+    radio1.clear_interrupt_flags();
+
+    // decode Protobuf packet into struct
+    // recall that buffer[0] contains length of transmitted payload
+    // and &buffer[1] is the start of the real Protobuf packet
+    int length = buffer[0];
+    if (length == 0) {
+        // Protobuf packet with all fields set to 0
+        // TODO: create message struct ?
+        event_queue.call(printf, "no data\n");
+    } else {
+        // decode message
+        pb_istream_t rx_stream = pb_istream_from_buffer(&buffer[1], length);
+        bool status = pb_decode(&rx_stream, RadioCommand_fields, &ai_message);
+        if (!status) {
+            // decoding failed
+            event_queue.call(printf, "failed decoding\n");
+        } else {
+            // execute command
+            event_queue.call(parse_message);
+        }
+    }
 }
 
 void print_communication_status()
@@ -191,16 +207,23 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-    RF_app rf_app1(&radio1,
-            RF_app::RFAppMode::RX,
-            RF_FREQUENCY_1,
-            com_addr1_to_listen,
-            RadioCommand_size + 1);
-    rf_app1.print_setup();
-    rf_app1.attach_rx_callback(&on_rx_interrupt);
-    rf_app1.run();
+    radio1.initialize(NRF24L01::OperationMode::RECEIVER, NRF24L01::DataRate::_2MBPS, RF_FREQUENCY_1);
+    radio1.attach_receive_address_to_pipe(NRF24L01::RxAddressPipe::RX_ADDR_P0, com_addr1_to_listen);
+//    radio1.set_auto_acknowledgement(true);
+//    radio1.set_crc(NRF24L01::CRCwidth::_8bits);
+    radio1.attach(on_rx_interrupt);
+    radio1.start_listening();
+
+//    RF_app rf_app1(&radio1,
+//            RF_app::RFAppMode::RX,
+//            RF_FREQUENCY_1,
+//            com_addr1_to_listen,
+//            RadioCommand_size + 1);
+//    rf_app1.print_setup();
+//    rf_app1.attach_rx_callback(&on_rx_interrupt);
+//    rf_app1.run();
 
     event_queue.dispatch_forever();
 
-    while (true) { }
+    while (true) { } //todo: do something when EventQueue breaks
 }
