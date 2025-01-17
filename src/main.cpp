@@ -3,6 +3,7 @@
 #include <swo.h>
 #include <rf_app.h>
 
+#include "feedback/feedback_handler.h"
 #include "motor/brushless_board.h"
 #include "motor/dribbler.h"
 #include "sensor/ir.h"
@@ -33,7 +34,8 @@ EventQueue event_queue;
 
 // SPI handler
 static SPI driver_spi(SPI_MOSI_DRV, SPI_MISO_DRV, SPI_SCK_DRV);
-static Mutex spi_mutex;
+static Mutex spi_mutex; // motor & dribbler SPI bus mutex
+static Mutex radio_mutex; // nRF access mutex
 
 // motors of the robot
 static Brushless_board motor1(&driver_spi, SPI_CS_DRV1, &spi_mutex);
@@ -44,7 +46,7 @@ static Dribbler dribbler(&driver_spi, SPI_CS_DRV5, &spi_mutex);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
 static Timeout timeout; // used to stop motors when no command received after a certain time
-
+static FeedbackHandler fbHandler(radio1, radio_mutex, event_queue, NRF24L01::RxAddressPipe::RX_ADDR_P0);
 static KICKER kicker(KCK_EN, KCK1, KCK2);
 
 /* Struct definitions */
@@ -255,6 +257,9 @@ int main()
 //    rf_app1.print_setup();
 //    rf_app1.attach_rx_callback(&on_rx_interrupt);
 //    rf_app1.run();
+
+    fbHandler.start();
+
     event_queue.dispatch_forever();
 
     while (true) { } //todo: do something when EventQueue breaks
