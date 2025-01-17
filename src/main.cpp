@@ -16,7 +16,9 @@
 #define RF_FREQUENCY_1 2509
 #define RF_FREQUENCY_2 2511
 
+namespace {
 #define PACKET_LEN (RadioCommand_size + 1)
+};
 
 using namespace sixtron;
 
@@ -107,6 +109,10 @@ void stop_motors()
     motor4.set_state(Commands_STOP);
 }
 
+/**
+ * Parse the current command received from the base station.
+ * Assumes that the ai_message global variable was updated.
+ */
 void parse_message() {
     // ignore cmd if not destined for this robot
     // base station's packet is broadcast across the frequency
@@ -117,12 +123,12 @@ void parse_message() {
 
     if (ai_message.kick == Kicker::Kicker_CHIP) {
         kicker.kick1(ai_message.kick_power);
-        event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+        printf("Power %f\n", ai_message.kick_power);
     }
 
     if (ai_message.kick == Kicker::Kicker_FLAT) {
         kicker.kick2(ai_message.kick_power);
-        event_queue.call(printf, "Power %f\n", ai_message.kick_power);
+        printf("Power %f\n", ai_message.kick_power);
     }
 
     if (ai_message.dribbler > 0.0) {
@@ -148,16 +154,24 @@ void parse_message() {
     timeout.attach(stop_motors, 500ms);
 }
 
-void on_rx_interrupt() {
+/**
+ * Reads a new packet from the RX FIFO of the nRF24L01 module.
+ * If decoding succeeds, parses the message.
+ * Not ISR-safe.
+ */
+void read_radio_packet() {
     static uint8_t buffer[PACKET_LEN];
-    memset(buffer, 0, PACKET_LEN);
 
     // clear out previous AI message to ensure safety
     ai_message = RadioCommand_init_zero;
 
+    uint8_t fifo_status = radio1.fifo_status_register();
+    if ((fifo_status & 0x01) == 1)
+        printf("RX FIFO empty");
+
     // read packet from nRF24 module
-    radio1.read_packet(buffer, PACKET_LEN);
     radio1.clear_interrupt_flags();
+    radio1.read_packet(buffer, PACKET_LEN);
 
     // decode Protobuf packet into struct
     // recall that buffer[0] contains length of transmitted payload
@@ -165,20 +179,30 @@ void on_rx_interrupt() {
     int length = buffer[0];
     if (length == 0) {
         // Protobuf packet with all fields set to 0
-        // TODO: create message struct ?
-        event_queue.call(printf, "no data\n");
+        // TODO: process empty message struct ?
+        printf("no data\n");
     } else {
         // decode message
         pb_istream_t rx_stream = pb_istream_from_buffer(&buffer[1], length);
         bool status = pb_decode(&rx_stream, RadioCommand_fields, &ai_message);
         if (!status) {
             // decoding failed
-            event_queue.call(printf, "failed decoding\n");
+            printf("failed decoding\n");
         } else {
-            // execute command
-            event_queue.call(parse_message);
+            printf("yay !\n");
+            parse_message();
         }
     }
+}
+
+/**
+ * Defers to EventQueue the reading of the
+ * radio packet from the nRF module
+ * (SPI read/write cannot be used in an ISR context,
+ * because they use a Mutex)
+ */
+void on_rx_interrupt() {
+    event_queue.call(read_radio_packet);
 }
 
 void print_communication_status()
@@ -207,11 +231,11 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
+    // configure radio in RX mode
     radio1.initialize(NRF24L01::OperationMode::RECEIVER, NRF24L01::DataRate::_2MBPS, RF_FREQUENCY_1);
-    radio1.attach_receive_address_to_pipe(NRF24L01::RxAddressPipe::RX_ADDR_P0, com_addr1_to_listen);
-//    radio1.set_auto_acknowledgement(true);
-//    radio1.set_crc(NRF24L01::CRCwidth::_8bits);
-    radio1.attach(on_rx_interrupt);
+    radio1.attach_receive_payload(NRF24L01::RxAddressPipe::RX_ADDR_P0, com_addr1_to_listen, PACKET_LEN);
+    radio1.set_interrupt(NRF24L01::InterruptMode::RX_ONLY);
+    radio1.attach(on_rx_interrupt); // nRF always in RX mode, all interrupts are RX
     radio1.start_listening();
 
 //    RF_app rf_app1(&radio1,
@@ -222,7 +246,6 @@ int main()
 //    rf_app1.print_setup();
 //    rf_app1.attach_rx_callback(&on_rx_interrupt);
 //    rf_app1.run();
-
     event_queue.dispatch_forever();
 
     while (true) { } //todo: do something when EventQueue breaks
