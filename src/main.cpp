@@ -236,6 +236,15 @@ int main()
     radio1.attach_receive_payload(NRF24L01::RxAddressPipe::RX_ADDR_P0, com_addr1_to_listen, PACKET_LEN);
     radio1.set_interrupt(NRF24L01::InterruptMode::RX_ONLY);
     radio1.attach(on_rx_interrupt); // nRF always in RX mode, all interrupts are RX
+
+    // setup ACK payload
+    // requirements:
+    radio1.set_auto_acknowledgement(true); // auto ACK
+    radio1.set_crc(NRF24L01::CRCwidth::_8bits); // enforced by Auto ACk
+    radio1.enable_dynamic_payload(true); // dynamic payload
+
+    radio1.enable_payload_ack_mode(true);
+
     radio1.start_listening();
 
 //    RF_app rf_app1(&radio1,
