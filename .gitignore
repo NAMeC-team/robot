@@ -10,5 +10,6 @@ ssl-kicker/
 ssl-mainboard/
 zest-core-stm32l4a6rg/
 swo/
+tmc4671_api
 
 # Do NOT ignore files below
