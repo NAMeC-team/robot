@@ -1,10 +1,11 @@
 #include <mbed.h>
 #include <radio_command.pb.h>
-#include <swo.h>
 #include <rf_app.h>
+#include <swo.h>
 
 #include "motor/brushless_board.h"
 #include "motor/dribbler.h"
+#include "motor/trinamic_board.h"
 #include "sensor/ir.h"
 #include "ssl-kicker.h"
 
@@ -182,8 +183,17 @@ void print_communication_status()
 
 int main()
 {
-    driver_spi.frequency(500000);
+    // change the frequency depending of the datasheet
+    driver_spi.frequency(5000000);
 
+    // configure the format according to the datasheet
+    // the mode should be =3 according to the phase and polarity
+    // 8 corresponds to the length of each datagram
+    driver_spi.format(8, 3);
+    TrinamicMotor tmcmotor1;
+    tmcmotor1.setup(&driver_spi);
+    tmcmotor1.set_speed(500);
+    return 0;
     // // Remote
     // serial_port.baud(115200);
     // serial_port.attach(&on_rx_interrupt, SerialBase::RxIrq);
