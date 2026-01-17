@@ -1,5 +1,6 @@
 #include <mbed.h>
 #include <radio_command.pb.h>
+#include <radio_feedback.pb.h>
 #include <swo.h>
 #include <rf_app.h>
 
@@ -37,6 +38,8 @@ static Brushless_board motor4(&driver_spi, SPI_CS_DRV4, &spi_mutex);
 static Dribbler dribbler(&driver_spi, SPI_CS_DRV5, &spi_mutex);
 static SPI radio_spi(SPI_MOSI_RF, SPI_MISO_RF, SPI_SCK_RF);
 static NRF24L01 radio1(&radio_spi, SPI_CS_RF1, CE_RF1, IRQ_RF1);
+static NRF24L01 radio2(&radio_spi, SPI_CS_RF2, CE_RF2, IRQ_RF2);
+
 static Timeout timeout;
 
 static KICKER kicker(KCK_EN, KCK1, KCK2);
@@ -90,6 +93,34 @@ void apply_motor_speed()
     motor4.set_speed(motor_speed.speed4);
 }
 
+void send_feedback()
+{
+    RadioFeedback feedback;
+    feedback.ir = ir::present();
+    feedback.voltage = 25;
+    // TODO: Add more feedback
+
+    uint8_t tx_buffer[RadioFeedback_size + 1];
+
+    memset(tx_buffer, 0, sizeof(tx_buffer));
+
+    /* Create a stream that will write to our buffer. */
+    pb_ostream_t tx_stream = pb_ostream_from_buffer(tx_buffer + 1, RadioFeedback_size);
+
+    bool status = pb_encode(&tx_stream, RadioFeedback_fields, &feedback);
+
+    size_t message_length = tx_stream.bytes_written;
+
+    /* Then just check for any errors.. */
+    if (!status) {
+        printf("[Feedback] Encoding failed: %s\n", PB_GET_ERROR(&tx_stream));
+        return;
+    }
+    tx_buffer[0] = message_length;
+
+    radio2.send_packet(tx_buffer, RadioFeedback_size + 1);
+}
+
 void stop_motors()
 {
     led = false;
@@ -118,6 +149,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
 
     length = data[0];
     event_queue.call(printf, "LENGTH: %d\n", length);
+
     if (length == 0) {
         event_queue.call(stop_motors);
     } else {
@@ -164,6 +196,9 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             }
         }
     }
+
+    event_queue.call(send_feedback);
+
     timeout.detach();
     timeout.attach(stop_motors, 500ms);
 }
@@ -198,7 +233,8 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-    event_queue.call_every(1s, print_communication_status);
+    // event_queue.call_every(1s, print_communication_status);
+    event_queue.call_every(16ms, ir::compute);
 
     // Radio
     RF_app rf_app1(&radio1,
@@ -209,6 +245,13 @@ int main()
     rf_app1.print_setup();
     rf_app1.attach_rx_callback(&on_rx_interrupt);
     rf_app1.run();
+
+    radio2.initialize(
+            NRF24L01::OperationMode::TRANSCEIVER, NRF24L01::DataRate::_2MBPS, RF_FREQUENCY_2);
+    radio2.attach_transmitting_payload(
+            NRF24L01::RxAddressPipe::RX_ADDR_P0, com_addr1_to_listen, RadioFeedback_size + 1);
+    radio2.set_payload_size(NRF24L01::RxAddressPipe::RX_ADDR_P0, RadioFeedback_size + 1);
+    radio2.set_interrupt(NRF24L01::InterruptMode::NONE);
 
     event_queue.dispatch_forever();
 
