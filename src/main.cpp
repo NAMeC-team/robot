@@ -2,19 +2,20 @@
 #include <radio_command.pb.h>
 #include <radio_feedback.pb.h>
 #include <swo.h>
+#include <rf_app.h>
 
 #include "motor/brushless_board.h"
 #include "motor/dribbler.h"
-#include "rf_app.h"
 #include "sensor/ir.h"
 #include "ssl-kicker.h"
 
 #define HALF_PERIOD 500ms
 #define ROBOT_RADIUS 0.085
+#define MAX_DRIBBLER_SPEED 400.
 
 // Radio frequency
-#define RF_FREQUENCY_1 2402
-#define RF_FREQUENCY_2 2460
+#define RF_FREQUENCY_1 2509
+#define RF_FREQUENCY_2 2511
 using namespace sixtron;
 
 static SWO swo;
@@ -122,14 +123,23 @@ void send_feedback()
 
 void stop_motors()
 {
-    motor1.set_state(Commands_STOP);
-    motor2.set_state(Commands_STOP);
-    motor3.set_state(Commands_STOP);
-    motor4.set_state(Commands_STOP);
+    led = false;
+    // TODO: normally, just setting state to Commands_STOP
+    // should halt the motors, but it doesn't
+    // even though the underlying code is valid (brushless motors code)
+    motor1.set_state(Commands_RUN);
+    motor2.set_state(Commands_RUN);
+    motor3.set_state(Commands_RUN);
+    motor4.set_state(Commands_RUN);
     motor1.set_speed(0.0);
     motor2.set_speed(0.0);
     motor3.set_speed(0.0);
     motor4.set_speed(0.0);
+    wait_us(200);
+    motor1.set_state(Commands_STOP);
+    motor2.set_state(Commands_STOP);
+    motor3.set_state(Commands_STOP);
+    motor4.set_state(Commands_STOP);
 }
 
 void on_rx_interrupt(uint8_t *data, size_t data_size)
@@ -141,8 +151,9 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
     event_queue.call(printf, "LENGTH: %d\n", length);
 
     if (length == 0) {
-        event_queue.call(apply_motor_speed);
+        event_queue.call(stop_motors);
     } else {
+        led = true;
         /* Try to decode protobuf response */
         /* Create a stream that reads from the buffer. */
         pb_istream_t rx_stream = pb_istream_from_buffer(&data[1], length);
@@ -154,6 +165,8 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
         if (!status) {
             event_queue.call(printf, "[IA] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
         } else {
+            if (ai_message.robot_id != ROBOT_ID)
+                return;
             event_queue.call(apply_motor_speed);
             if (ai_message.kick == Kicker::Kicker_CHIP) {
                 kicker.kick1(ai_message.kick_power);
@@ -165,7 +178,10 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
             }
             if (ai_message.dribbler > 0.0) {
                 dribbler.set_state(Commands_RUN);
-                dribbler.set_speed(400);
+                uint8_t dribbler_speed = ai_message.dribbler;
+                if (dribbler_speed > MAX_DRIBBLER_SPEED)
+                    dribbler_speed = MAX_DRIBBLER_SPEED;
+                dribbler.set_speed(dribbler_speed);
                 dribbler.send_message();
             } else {
                 dribbler.set_state(Commands_STOP);
