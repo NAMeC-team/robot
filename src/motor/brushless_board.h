@@ -13,6 +13,14 @@
 #include "pb_decode.h"
 #include "pb_encode.h"
 
+/* Struct definitions */
+typedef struct _Motor_speed {
+    float speed1;
+    float speed2;
+    float speed3;
+    float speed4;
+} Motor_speed;
+
 class Brushless_board {
 public:
     enum class Brushless_error : int8_t {
@@ -43,6 +51,8 @@ public:
 
     void set_speed(float speed);
 
+    void set_all_motors_speed(Motor_speed motor_speed);
+
     void set_state(Commands state);
 
     uint32_t get_tx_error_count();
@@ -68,8 +78,9 @@ private:
     uint32_t _rx_error_count;
     Commands _current_command;
     float _current_speed;
+    Motor_speed _motor_speed;
 
-    uint8_t _brushless_tx_buffer[MainBoardToBrushless_size + 4 + 1]; // CRC size is 4 bytes
+    uint8_t _brushless_tx_buffer[MainBoardToEveryBrushless_size + 4 + 1]; // CRC size is 4 bytes
     uint8_t _brushless_rx_buffer[BrushlessToMainBoard_size + 4 + 1]; // CRC size is 4 bytes + length
 };
 

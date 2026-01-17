@@ -22,18 +22,23 @@ Brushless_board::Brushless_board(SPI *spi, PinName chip_select, Mutex *spi_mutex
 
 Brushless_board::Brushless_error Brushless_board::send_message()
 {
-    MainBoardToBrushless message = MainBoardToBrushless_init_zero;
+    MainBoardToEveryBrushless message = MainBoardToEveryBrushless_init_zero;
     memset(_brushless_tx_buffer, 0, sizeof(_brushless_tx_buffer));
 
     /* Create a stream that will write to our buffer. */
     pb_ostream_t tx_stream
-            = pb_ostream_from_buffer(_brushless_tx_buffer + 5, MainBoardToBrushless_size);
+            = pb_ostream_from_buffer(_brushless_tx_buffer + 5, MainBoardToEveryBrushless_size);
 
-    message.command = _current_command;
-    message.speed = _current_speed;
+    message.motor1 = MainBoardToBrushless { .command = _current_command, .speed = _motor_speed.speed1, .id = 1 };
+    message.motor2 = MainBoardToBrushless { .command = _current_command, .speed = _motor_speed.speed2, .id = 2 };
+    message.motor3 = MainBoardToBrushless { .command = _current_command, .speed = _motor_speed.speed3, .id = 3 };
+    message.motor4 = MainBoardToBrushless { .command = _current_command, .speed = _motor_speed.speed4, .id = 4 };
+
+    //message.command = _current_command;
+    //message.speed = _current_speed;
 
     /* Now we are ready to encode the message! */
-    bool status = pb_encode(&tx_stream, MainBoardToBrushless_fields, &message);
+    bool status = pb_encode(&tx_stream, MainBoardToEveryBrushless_fields, &message);
     size_t message_length = tx_stream.bytes_written;
 
     // printf("Bytes_written: %d/%d\n", tx_stream.bytes_written, MainBoardToBrushless_size);
@@ -69,37 +74,38 @@ Brushless_board::Brushless_error Brushless_board::send_message()
     _chip_select = 1;
     _spi_mutex->unlock();
 
-    /* Try to decode protobuf response */
-    BrushlessToMainBoard response = BrushlessToMainBoard_init_zero;
-    uint8_t response_length = _brushless_rx_buffer[0];
 
-    /* Create a stream that reads from the buffer. */
-    pb_istream_t rx_stream = pb_istream_from_buffer(_brushless_rx_buffer + 5, response_length);
-
-    /* Now we are ready to decode the message. */
-    status = pb_decode(&rx_stream, BrushlessToMainBoard_fields, &response);
-
-    /* Check for errors... */
-    if (!status) {
-        printf("[BRUSHLESS] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
-        _rx_error_count++;
-        return Brushless_error::DECODE_ERROR;
-    }
-
-    /* Check response CRC */
-    uint32_t response_crc = 0;
-    ct.compute((uint8_t *)_brushless_rx_buffer + 5, response_length, &response_crc);
-    if (response_crc == *((uint32_t *)(_brushless_rx_buffer + 1))) {
-        // printf("CRC OK\n");
-    } else {
-        // printf("CRC_ERROR 0x%x 0x%x\n", response_crc, *((uint32_t *) (_brushless_rx_buffer +
-        // 1)));
-        _rx_error_count++;
-        return Brushless_error::DECODE_ERROR;
-    }
-
-    /* Print the data contained in the message. */
-    _tx_error_count = response.error_count;
+    ///* Try to decode protobuf response */
+    //BrushlessToMainBoard response = BrushlessToMainBoard_init_zero;
+    //uint8_t response_length = _brushless_rx_buffer[0];
+//
+    ///* Create a stream that reads from the buffer. */
+    //pb_istream_t rx_stream = pb_istream_from_buffer(_brushless_rx_buffer + 5, response_length);
+//
+    ///* Now we are ready to decode the message. */
+    //status = pb_decode(&rx_stream, BrushlessToMainBoard_fields, &response);
+//
+    ///* Check for errors... */
+    //if (!status) {
+    //    printf("[BRUSHLESS] Decoding failed: %s\n", PB_GET_ERROR(&rx_stream));
+    //    _rx_error_count++;
+    //    return Brushless_error::DECODE_ERROR;
+    //}
+//
+    ///* Check response CRC */
+    //uint32_t response_crc = 0;
+    //ct.compute((uint8_t *)_brushless_rx_buffer + 5, response_length, &response_crc);
+    //if (response_crc == *((uint32_t *)(_brushless_rx_buffer + 1))) {
+    //    // printf("CRC OK\n");
+    //} else {
+    //    // printf("CRC_ERROR 0x%x 0x%x\n", response_crc, *((uint32_t *) (_brushless_rx_buffer +
+    //    // 1)));
+    //    _rx_error_count++;
+    //    return Brushless_error::DECODE_ERROR;
+    //}
+//
+    ///* Print the data contained in the message. */
+    //_tx_error_count = response.error_count;
 
     return Brushless_error::NO_ERROR;
 }
@@ -128,6 +134,10 @@ void Brushless_board::set_state(Commands state)
 void Brushless_board::set_speed(float speed)
 {
     _current_speed = speed;
+}
+void Brushless_board::set_all_motors_speed(Motor_speed motor_speed)
+{
+    _motor_speed = motor_speed;
 }
 
 uint32_t Brushless_board::get_rx_error_count()
