@@ -246,13 +246,6 @@ int main()
     rf_app1.attach_rx_callback(&on_rx_interrupt);
     rf_app1.run();
 
-    radio2.initialize(
-            NRF24L01::OperationMode::TRANSCEIVER, NRF24L01::DataRate::_2MBPS, RF_FREQUENCY_2);
-    radio2.attach_transmitting_payload(
-            NRF24L01::RxAddressPipe::RX_ADDR_P0, com_addr1_to_listen, RadioFeedback_size + 1);
-    radio2.set_payload_size(NRF24L01::RxAddressPipe::RX_ADDR_P0, RadioFeedback_size + 1);
-    radio2.set_interrupt(NRF24L01::InterruptMode::NONE);
-
     event_queue.dispatch_forever();
 
     while (true) { }
