@@ -148,7 +148,6 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
     ai_message = RadioCommand_init_zero;
 
     length = data[0];
-    event_queue.call(printf, "LENGTH: %d\n", length);
 
     if (length == 0) {
         event_queue.call(stop_motors);
