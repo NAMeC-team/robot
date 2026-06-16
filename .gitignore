@@ -2,8 +2,6 @@
 projectfiles
 *.py*
 
-.vscode/
-
 mbed-os/
 nanopb/
 nordic-nrf24l01/
