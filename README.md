@@ -70,3 +70,9 @@ sixtron_flash stm32l4a6rg BUILD/ZEST_CORE_STM32L4A6RG/GCC_ARM/robot.elf
 Debug on the target device with the probe and Segger
 [Ozone](https://www.segger.com/products/development-tools/ozone-j-link-debugger)
 software.
+
+## Linter setup
+Linter is prepared for VSCode for this repository. 90% functional, some things do not really work yet, unable to fix for now.
+
+To set it up, install the C/C++ Extension for VSCode, and set the compiler used for the project by opening the command window (Ctrl + Maj + P)
+and typing "Select Intellisense Configuration". After that, select your arm-none-eabi-g++ compiler, and the linter should be setup.
