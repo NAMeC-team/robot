@@ -1,8 +1,8 @@
 #include <mbed.h>
 #include <radio_command.pb.h>
 #include <radio_feedback.pb.h>
-#include <swo.h>
 #include <rf_app.h>
+#include <swo.h>
 
 #include "motor/brushless_board.h"
 #include "motor/dribbler.h"
@@ -14,8 +14,8 @@
 #define MAX_DRIBBLER_SPEED 400.
 
 // Radio frequency
-#define RF_FREQUENCY_1 2509
-#define RF_FREQUENCY_2 2511
+#define RF_FREQUENCY_MATCH 2514
+#define RF_FREQUENCY_TEST 2488
 using namespace sixtron;
 
 static SWO swo;
@@ -238,7 +238,7 @@ int main()
     // Radio
     RF_app rf_app1(&radio1,
             RF_app::RFAppMode::RX,
-            RF_FREQUENCY_1,
+            RF_FREQUENCY_MATCH,
             com_addr1_to_listen,
             RadioCommand_size + 1);
     rf_app1.print_setup();
