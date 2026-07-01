@@ -232,7 +232,7 @@ int main()
     motor3.start_communication();
     motor4.start_communication();
 
-    // event_queue.call_every(1s, print_communication_status);
+    event_queue.call_every(1s, print_communication_status);
     event_queue.call_every(16ms, ir::compute);
 
     // Radio
