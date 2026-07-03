@@ -196,7 +196,7 @@ void on_rx_interrupt(uint8_t *data, size_t data_size)
         }
     }
 
-    event_queue.call(send_feedback);
+    // event_queue.call(send_feedback);
 
     timeout.detach();
     timeout.attach(stop_motors, 500ms);
@@ -234,6 +234,9 @@ int main()
 
     // event_queue.call_every(1s, print_communication_status);
     event_queue.call_every(16ms, ir::compute);
+
+    // adresse ip personnelle
+    com_addr1_to_listen[4] = ROBOT_ID;
 
     // Radio
     RF_app rf_app1(&radio1,
