@@ -46,7 +46,7 @@ static KICKER kicker(KCK_EN, KCK1, KCK2);
 int main()
 {
     driver_spi.frequency(500000);
-
+	ir::setup();
     motor1.set_communication_period(10);
     motor2.set_communication_period(10);
     motor3.set_communication_period(10);
