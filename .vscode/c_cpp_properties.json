@@ -1,0 +1,88 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                // "${workspaceFolder}/**",
+
+                // mbed stuff
+                // don't use globstar because UNITTESTS folders contain mock classes
+                //"${workspaceFolder}/mbed-os/(cmsis|connectivity|drivers|events|extern|features|hal|platform|rtos|storage|targets|tools)*/**",
+                "${workspaceFolder}/mbed-os/cmsis/CMSIS_5/**",
+                "${workspaceFolder}/mbed-os/cmsis/device/**",
+                "${workspaceFolder}/mbed-os/connectivity/cellular/include/**",
+                "${workspaceFolder}/mbed-os/connectivity/cellular/source/**",
+                "${workspaceFolder}/mbed-os/connectivity/docs/**",
+                "${workspaceFolder}/mbed-os/connectivity/drivers/**",
+                "${workspaceFolder}/mbed-os/connectivity/FEATURE_BLE/include/**",
+                "${workspaceFolder}/mbed-os/connectivity/FEATURE_BLE/libraries/**",
+                "${workspaceFolder}/mbed-os/connectivity/FEATURE_BLE/source/**",
+                "${workspaceFolder}/mbed-os/connectivity/libraries/mbed-coap/**",
+                "${workspaceFolder}/mbed-os/connectivity/libraries/nanostack-libservice/**",
+                "${workspaceFolder}/mbed-os/connectivity/libraries/ppp/**",
+                "${workspaceFolder}/mbed-os/connectivity/lorawan/include/**",
+                "${workspaceFolder}/mbed-os/connectivity/lorawan/lorastack/**",
+                "${workspaceFolder}/mbed-os/connectivity/lorawan/source/**",
+                "${workspaceFolder}/mbed-os/connectivity/lorawan/system/**",
+                "${workspaceFolder}/mbed-os/connectivity/lwipstack/**",
+                "${workspaceFolder}/mbed-os/connectivity/mbedtls/include/**",
+                "${workspaceFolder}/mbed-os/connectivity/mbedtls/platform/**",
+                "${workspaceFolder}/mbed-os/connectivity/mbedtls/source/**",
+
+                // at this point, I stopped checking which had the tests/ folder to ignore
+                // someone ask an LLM to generate these lines, excluding all tests/ folders pls
+                "${workspaceFolder}/mbed-os/connectivity/nanostack/**",
+                "${workspaceFolder}/mbed-os/connectivity/netsocket/**",
+                "${workspaceFolder}/mbed-os/connectivity/nfc/**",
+                "${workspaceFolder}/mbed-os/drivers/device_key/**",
+                "${workspaceFolder}/mbed-os/drivers/docs/**",
+                "${workspaceFolder}/mbed-os/drivers/include/**",
+                "${workspaceFolder}/mbed-os/drivers/source/**",
+                "${workspaceFolder}/mbed-os/drivers/usb/**",
+                // "${workspaceFolder}/mbed-os/events/include/**",
+                // "${workspaceFolder}/mbed-os/events/source/**",
+                "${workspaceFolder}/mbed-os/extern/**",
+                "${workspaceFolder}/mbed-os/features/**",
+                "${workspaceFolder}/mbed-os/hal/docs/**",
+                "${workspaceFolder}/mbed-os/hal/include/**",
+                "${workspaceFolder}/mbed-os/hal/source/**",
+                "${workspaceFolder}/mbed-os/hal/TARGET_FLASH_CMSIS_ALGO/**",
+                "${workspaceFolder}/mbed-os/hal/usb/**",
+                "${workspaceFolder}/mbed-os/platform/bare_metal/**",
+                "${workspaceFolder}/mbed-os/platform/cxxsupport/**",
+                "${workspaceFolder}/mbed-os/platform/docs/**",
+                "${workspaceFolder}/mbed-os/platform/FEATURE_EXPERIMENTAL_API/**",
+                "${workspaceFolder}/mbed-os/platform/include/**",
+                "${workspaceFolder}/mbed-os/platform/mbed-trace/**",
+                "${workspaceFolder}/mbed-os/platform/randlib/**",
+                "${workspaceFolder}/mbed-os/platform/source/**",
+                "${workspaceFolder}/mbed-os/rtos/include/**",
+                "${workspaceFolder}/mbed-os/rtos/source/**",
+                "${workspaceFolder}/mbed-os/storage/**",
+                "${workspaceFolder}/mbed-os/targets/**",
+                "${workspaceFolder}/mbed-os/tools/**",
+                "${workspaceFolder}/mbed-os/",
+                
+                // NAMeC libraries
+                "${workspaceFolder}/nanopb/**",
+                "${workspaceFolder}/nordic-nrf24l01/**",
+                "${workspaceFolder}/nrf24l01-rf-app/**",
+                "${workspaceFolder}/sensor-data-protocol/**",
+                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/ssl-kicker/**",
+                "${workspaceFolder}/ssl-mainboard/**",
+                "${workspaceFolder}/swo/**",
+                "${workspaceFolder}/zest-core-stm32l4a6rg/**"
+            ],
+            "defines": [
+                "DEVICE_SPI",  // to enable SPI usage in mbed-os
+                "__MUTEX_H__",  // ignore mock mutex implementation of mbed-os tests
+                "DEVICE_SERIAL"
+            ],
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
