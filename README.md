@@ -71,8 +71,73 @@ Debug on the target device with the probe and Segger
 [Ozone](https://www.segger.com/products/development-tools/ozone-j-link-debugger)
 software.
 
-## Linter setup
-Linter is prepared for VSCode for this repository. 90% functional, some things do not really work yet, unable to fix for now.
+# Linter & static analyzer setup (LSP)
+We recommend using [`clangd`](https://clangd.llvm.org/installation) as your LSP server
+for auto-completing, indexing and checks. The repository has a `compile_commands.json` that you
+must point your IDE to, because it is not in a standard location for `clangd`
 
-To set it up, install the C/C++ Extension for VSCode, and set the compiler used for the project by opening the command window (Ctrl + Maj + P)
-and typing "Select Intellisense Configuration". After that, select your arm-none-eabi-g++ compiler, and the linter should be setup.
+## Debian-like
+To install clangd, you can either install the apt package (see [here]())
+
+## Official binaries
+Download the latest binary of `clangd` https://github.com/clangd/clangd/releases/latest for your architecture
+(usually Linux x86_64, unless you have a Mac or something spicy).
+
+```bash
+# If wget is not installed
+# sudo apt install wget
+wget https://github.com/clangd/clangd/releases/download/23.1.0/clangd-linux-23.1.0.zip
+unzip clangd-linux-23.1.0.zip
+```
+
+The folder contains two folders : `bin` and `lib`. You can either install it for your user or system-wide.
+### System-wide
+
+```bash
+mv clangd-linux-23.1.0/bin/clangd /usr/bin
+mv clangd-linux-23.1.0/lib/* /usr/lib/
+```
+
+### User-only
+```bash
+mkdir -p $HOME/.local/bin
+mv clangd-linux-23.1.0/bin/clangd $HOME/.local/bin
+
+mkdir -p $HOME/.local/lib
+mv clangd-linux-23.1.0/lib/clang $HOME/.local/lib
+```
+
+And add the following to your .bashrc file if it isn't present already
+```
+export PATH=$PATH:$HOME/.local/bin/
+```
+
+Once installed, you must setup your IDE to work with `clangd`.
+
+## JetBrains / CLion
+Should detect the file by itself. If it doesn't, follow the [official tutorial](https://www.jetbrains.com/help/clion/compilation-database.html#compdb_clion).
+
+## VSCode
+Install the [clangd extension for VSCode](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd)
+and open any code file on your IDE. If clangd is not installed, VSCode will offer to install it for you.
+If you accept, `clangd` will only be available to VSCode and not system-wide.
+
+After `clangd` is installed, add the following lines to your user settings (brackets represent the main object).
+
+```json
+{
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.arguments": [
+    "--query-driver=**/arm-none-eabi-*",
+    "--background-index",
+    "--header-insertion=never",
+    "--compile-commands-dir=${workspaceFolder}"
+  ]
+}
+```
+
+## Updating compile_commands.json
+If the build system were to change, note that the compilation database was generated using [ʕ·ᴥ·ʔ Build ear](https://github.com/rizsotto/bear) :
+```bash
+bear -- mbed compile -m ZEST_CORE_STM32L4A6RG -t GCC_ARM
+```
